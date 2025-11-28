@@ -9,27 +9,57 @@ Complete reference for the Laddr tool configuration schema.
 
 ## Tool Definition
 
+Laddr tools are Python functions decorated with `@tool`. Parameter schemas are **automatically generated** from function signatures, so you don't need to manually define JSON schemas.
+
+### Basic Tool
+
 ```python
 from laddr import tool
 
 @tool(
-    name="tool_name",
-    description="Tool description",
-    parameters={
-        "type": "object",
-        "properties": {
-            "param1": {"type": "string", "description": "..."},
-            "param2": {"type": "number", "description": "..."}
-        },
-        "required": ["param1"]
-    },
-    trace=True,
-    trace_mask=[]
+    name="weather_lookup",
+    description="Fetches current weather for a given city"
 )
-def tool_function(param1: str, param2: int = 0) -> dict:
+def weather_lookup(city: str, units: str = "metric") -> dict:
     """Tool implementation."""
+    # Parameter schema is auto-generated from function signature
     return {"status": "success", "data": result}
+```
 
+### With Pydantic Model
+
+For complex validation, use a Pydantic BaseModel as the first parameter:
+
+```python
+from laddr import tool
+from pydantic import BaseModel
+
+class WeatherInput(BaseModel):
+    city: str
+    units: str = "metric"
+    include_forecast: bool = False
+
+@tool(
+    name="weather_lookup",
+    description="Fetches current weather for a given city"
+)
+def weather_lookup(inputs: WeatherInput) -> dict:
+    """Tool implementation with Pydantic validation."""
+    # Inputs are automatically validated via Pydantic
+    return {"status": "success", "data": result}
+```
+
+### Minimal Tool (Auto-inferred)
+
+If you omit `name` and `description`, they're inferred from the function:
+
+```python
+@tool()
+def web_search(query: str, max_results: int = 5) -> dict:
+    """Search the web for information."""
+    # Name: "web_search" (from function name)
+    # Description: "Search the web for information." (from docstring)
+    return {"status": "success", "results": [...]}
 ```
 
 ---
@@ -38,115 +68,143 @@ def tool_function(param1: str, param2: int = 0) -> dict:
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `name` | `str` | ✅ | Unique tool identifier |
-| `description` | `str` | ✅ | What the tool does |
-| `parameters` | `dict` | ✅ | JSON Schema for inputs |
+| `name` | `str` | ❌ | Unique tool identifier (auto-inferred from function name) |
+| `description` | `str` | ❌ | What the tool does (auto-inferred from docstring) |
 | `trace` | `bool` | ❌ | Enable tracing (default: `True`) |
-| `trace_mask` | `list` | ❌ | Fields to redact in traces |
+| `trace_mask` | `list[str]` | ❌ | Fields to redact in traces |
+
+**Note:** Parameter schemas are **automatically generated** from function signatures. You don't need to manually define JSON schemas.
+
+### Parameter Descriptions
+
+#### `name`
+
+**Rules:**
+- Must be unique and descriptive
+- Use lowercase `snake_case`
+- Avoid generic names
+- If omitted, uses function name
+
+**Examples:**
+```python
+name="web_search"
+name="calculate_area"
+name="query_database"
+```
+
+#### `description`
+
+**Best Practices:**
+- Begin with an action verb
+- Limit to 100 characters
+- Avoid redundant phrasing like "use this tool to…"
+- If omitted, uses first line of docstring
+
+**Examples:**
+```python
+description="Scrape text content from a webpage"
+description="Translate text from English to French"
+```
+
+#### `trace`
+
+Enables or disables trace logging.
+
+**Example:**
+```python
+trace=True  # Default - all tool calls are traced
+trace=False  # Disable tracing for sensitive operations
+```
+
+Set to `False` when:
+- Handling sensitive user data
+- Reducing log volume for high-frequency tools
+
+#### `trace_mask`
+
+Redacts specified fields in traces.
+
+**Example:**
+```python
+trace_mask=["api_key", "token", "password"]
+```
+
+Fields matching these keys will appear as `***REDACTED***` in logs.
 
 ---
 
-## JSON Schema Types
+## Automatic Schema Generation
 
-### String
+Parameter schemas are automatically generated from Python function signatures. The system maps Python types to JSON Schema types:
 
-```json
-"param": {
-    "type": "string",
-    "description": "Parameter description",
-    "minLength": 1,
-    "maxLength": 100
-}
+| Python Type | JSON Schema Type | Example |
+|-------------|------------------|---------|
+| `str` | `string` | `query: str` |
+| `int` | `integer` | `limit: int` |
+| `float` | `number` | `price: float` |
+| `bool` | `boolean` | `enabled: bool` |
+| `list[T]` | `array` | `items: list[str]` |
+| `dict` | `object` | `config: dict` |
+| `Optional[T]` | Type with `null` | `timeout: int \| None` |
+| `BaseModel` | `object` (validated) | `inputs: MyModel` |
 
+### Type Hints Examples
+
+```python
+# String parameter
+def search(query: str) -> dict:
+    ...
+
+# Integer with default
+def fetch(limit: int = 10) -> dict:
+    ...
+
+# Optional parameter
+def process(timeout: int | None = None) -> dict:
+    ...
+
+# List parameter
+def batch_process(items: list[str]) -> dict:
+    ...
+
+# Dict parameter
+def configure(config: dict) -> dict:
+    ...
+
+# Complex nested (use Pydantic)
+from pydantic import BaseModel
+
+class Config(BaseModel):
+    host: str
+    port: int = 8080
+    ssl: bool = False
+
+def setup(inputs: Config) -> dict:
+    ...
 ```
 
-### Number
+### Supported Type Annotations
 
-```json
-"param": {
-    "type": "number",
-    "description": "Numeric parameter",
-    "minimum": 0,
-    "maximum": 100
-}
+- **Basic types**: `str`, `int`, `float`, `bool`
+- **Collections**: `list[T]`, `dict`, `tuple`
+- **Optional**: `Optional[T]` or `T | None`
+- **Union**: `str | int` (maps to first type)
+- **Pydantic Models**: Full validation support
 
-```
-
-### Integer
-
-```json
-"param": {
-    "type": "integer",
-    "description": "Integer parameter",
-    "minimum": 1,
-    "maximum": 100
-}
-
-```
-
-### Boolean
-
-```json
-"param": {
-    "type": "boolean",
-    "description": "Boolean flag"
-}
-
-```
-
-### Array
-
-```json
-"param": {
-    "type": "array",
-    "items": {"type": "string"},
-    "description": "List of strings"
-}
-
-```
-
-### Object
-
-```json
-"param": {
-    "type": "object",
-    "properties": {
-        "nested": {"type": "string"}
-    },
-    "description": "Nested object"
-}
-
-```
+**Note:** Type annotations are optional but recommended for better schema generation.
 
 ---
 
-## Complete Example
+## Complete Examples
+
+### Example 1: Basic Tool
 
 ```python
 from laddr import tool
 
 @tool(
     name="weather_lookup",
-    description="Fetches current weather for a given city",
-    parameters={
-        "type": "object",
-        "properties": {
-            "city": {
-                "type": "string",
-                "description": "City name",
-                "minLength": 1
-            },
-            "units": {
-                "type": "string",
-                "description": "Temperature units",
-                "enum": ["metric", "imperial"],
-                "default": "metric"
-            }
-        },
-        "required": ["city"]
-    },
-    trace=True,
-    trace_mask=[]
+    description="Fetches current weather for a given city"
 )
 def weather_lookup(city: str, units: str = "metric") -> dict:
     """Get weather for a city."""
@@ -155,7 +213,101 @@ def weather_lookup(city: str, units: str = "metric") -> dict:
         return {"status": "success", "data": result}
     except Exception as e:
         return {"status": "error", "error": str(e)}
+```
 
+**Generated Schema:**
+```json
+{
+  "type": "object",
+  "properties": {
+    "city": {"type": "string"},
+    "units": {"type": "string", "default": "metric"}
+  },
+  "required": ["city"]
+}
+```
+
+### Example 2: With Pydantic Validation
+
+```python
+from laddr import tool
+from pydantic import BaseModel, Field
+
+class WeatherInput(BaseModel):
+    city: str = Field(..., description="City name", min_length=1)
+    units: str = Field("metric", description="Temperature units", pattern="^(metric|imperial)$")
+    include_forecast: bool = Field(False, description="Include 5-day forecast")
+
+@tool(
+    name="weather_lookup",
+    description="Fetches current weather for a given city"
+)
+def weather_lookup(inputs: WeatherInput) -> dict:
+    """Get weather for a city with validation."""
+    try:
+        result = get_weather(inputs.city, inputs.units, inputs.include_forecast)
+        return {"status": "success", "data": result}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+```
+
+### Example 3: API Wrapper Pattern
+
+```python
+from laddr import tool
+import requests
+import os
+
+@tool(
+    name="api_call",
+    description="Perform a GET request to external API",
+    trace_mask=["api_key"]
+)
+def api_call(endpoint: str, api_key: str | None = None) -> dict:
+    """Call external API."""
+    key = api_key or os.getenv("API_KEY")
+    response = requests.get(
+        f"https://api.example.com/{endpoint}",
+        headers={"Authorization": f"Bearer {key}"},
+        timeout=10
+    )
+    return {"status": "success", "data": response.json()}
+```
+
+### Example 4: Data Transformer
+
+```python
+from laddr import tool
+import json
+
+@tool(
+    name="convert_format",
+    description="Convert data between formats"
+)
+def convert_format(data: str, to_format: str = "json") -> dict:
+    """Convert data between formats."""
+    if to_format == "json":
+        return {"status": "success", "result": json.loads(data)}
+    elif to_format == "csv":
+        return {"status": "success", "result": parse_csv(data)}
+    else:
+        return {"status": "error", "error": f"Unsupported format {to_format}"}
+```
+
+### Example 5: File Operations
+
+```python
+from laddr import tool
+import glob
+
+@tool(
+    name="list_files",
+    description="List files by pattern"
+)
+def list_files(directory: str, pattern: str = "*") -> dict:
+    """List files matching pattern."""
+    files = glob.glob(f"{directory}/{pattern}")
+    return {"status": "success", "files": files, "count": len(files)}
 ```
 
 ---
@@ -176,13 +328,149 @@ return {
     "status": "error",
     "error": "Error message"
 }
+```
 
+**Status Values:**
+- `"success"` - Tool executed successfully
+- `"error"` - Tool execution failed
+
+## Registering Tools with Agents
+
+Tools must be registered with agents. There are several ways to do this:
+
+### Method 1: Direct Registration
+
+```python
+from laddr import Agent
+from tools.web_tools import web_search
+from tools.math_tools import calculate
+
+agent = Agent(
+    name="researcher",
+    tools=[web_search, calculate]
+)
+```
+
+### Method 2: Auto-Discovery
+
+Tools are automatically discovered from `agents.<agent_name>.tools` package:
+
+```
+agents/
+  researcher/
+    tools/
+      __init__.py
+      web_search.py
+      calculate.py
+```
+
+The agent automatically loads all `@tool` decorated functions from this package.
+
+### Method 3: Using bind_tools
+
+```python
+from laddr.core.tooling import bind_tools
+from agents.researcher.tools import web_search
+
+class ResearcherAgent(Agent):
+    def __init__(self):
+        super().__init__(name="researcher")
+        bind_tools(self, [web_search, "summarize"])  # String names auto-import
+```
+
+## Tool Registry
+
+Tools are managed through a `ToolRegistry` that supports:
+
+- **Registration**: Add tools with optional aliases
+- **Lookup**: Find tools by name or alias
+- **Listing**: Get all available tools
+- **Validation**: Automatic input validation via Pydantic
+
+```python
+from laddr.core.tooling import ToolRegistry
+
+registry = ToolRegistry()
+registry.register(web_search, aliases=["search", "web"])
+tool = registry.get("web_search")  # or "search" or "web"
+```
+
+## Testing Tools
+
+### Manual Testing (Python)
+
+```python
+from tools.web_tools import web_search
+
+result = web_search(query="AI trends", max_results=3)
+print(result)
+```
+
+### Testing via API
+
+```bash
+curl -X GET "http://localhost:8000/api/agents/researcher/tools"
+```
+
+Returns all tools with their schemas:
+
+```json
+{
+  "agent": "researcher",
+  "tools": [
+    {
+      "name": "web_search",
+      "description": "Search the web for information",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {"type": "string"},
+          "max_results": {"type": "integer", "default": 5}
+        },
+        "required": ["query"]
+      }
+    }
+  ]
+}
 ```
 
 ---
 
+## Best Practices
+
+1. **Use Type Hints**: Always annotate function parameters for better schema generation
+2. **Descriptive Names**: Use clear, action-oriented tool names (`web_search` not `search`)
+3. **Error Handling**: Always return consistent error format
+4. **Sensitive Data**: Use `trace_mask` for API keys, tokens, passwords
+5. **Pydantic for Complex**: Use Pydantic models for complex validation needs
+6. **Documentation**: Write clear docstrings (used as descriptions if not provided)
+
+## Common Patterns
+
+### Pattern: API Wrapper
+```python
+@tool(name="api_call", description="Call external API")
+def api_call(endpoint: str, method: str = "GET") -> dict:
+    # Wraps external API calls
+```
+
+### Pattern: Data Transformer
+```python
+@tool(name="transform", description="Transform data format")
+def transform(data: str, format: str) -> dict:
+    # Converts between data formats
+```
+
+### Pattern: File Operations
+```python
+@tool(name="file_op", description="Perform file operation")
+def file_op(path: str, operation: str) -> dict:
+    # File system operations
+```
+
 ## Next Steps
 
-- [Agent Schema](/reference/schemas/agent-schema) - Agent configuration schema
-- [Tool Configuration](/guides/tools/tool-config) - Tool development guide
-- [MCP Integration](/guides/tools/mcp-integration) - Connect to MCP servers
+- [Tool Configuration](/tool-config) - Complete tool development guide
+- [Agent Configuration](/agent-config) - Agent configuration schema
+- [MCP Integration](/guides/mcp-integration) - Connect to MCP servers
+- [API Reference](/api-reference) - API endpoints for tool inspection
