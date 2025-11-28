@@ -1,0 +1,211 @@
+---
+title: "Playground & Dashboard"
+description: "Use the Laddr dashboard to monitor and interact with agents"
+---
+
+The Laddr dashboard provides a web-based interface for monitoring agents, viewing traces, and interacting with your multi-agent system.
+
+---
+
+## Starting the Dashboard
+
+Start the full Laddr stack:
+
+```bash
+laddr run dev -d
+# or
+docker compose up -d
+```
+
+The dashboard is available at:
+
+**http://localhost:5173**
+
+<Tip>
+The dashboard automatically connects to the API server at `http://localhost:8000`.
+</Tip>
+
+---
+
+## Dashboard Features
+
+### Agent Overview
+
+View all registered agents and their status:
+
+- **Agent List** - All agents in your system
+- **Status Indicators** - Running, idle, or error states
+- **Worker Count** - Number of active workers per agent
+
+### Real-Time Traces
+
+Monitor agent execution in real-time:
+
+- **Execution Timeline** - See each step as it happens
+- **Tool Calls** - View tool invocations and results
+- **LLM Interactions** - See prompts and responses
+- **Token Usage** - Track LLM costs
+
+### Job History
+
+Browse past executions:
+
+- **Job List** - All completed jobs
+- **Search & Filter** - Find specific jobs
+- **Job Details** - View full execution trace
+- **Replay Jobs** - Re-run previous jobs
+
+### System Metrics
+
+Monitor system health:
+
+- **Queue Status** - Message queue health
+- **Database Status** - Connection status
+- **Storage Status** - Storage backend health
+- **Worker Metrics** - Active workers and throughput
+
+---
+
+## Using the Playground
+
+### Submit a Job
+
+1. Navigate to the **Playground** tab
+2. Select an agent from the dropdown
+3. Enter input JSON:
+
+```json
+{
+  "query": "What is Laddr?",
+  "max_results": 5
+}
+```
+
+4. Click **Submit**
+5. Watch the execution in real-time
+
+### View Traces
+
+1. Click on any job in the **Jobs** tab
+2. View the execution trace:
+   - **Timeline** - Chronological view
+   - **Tree View** - Hierarchical structure
+   - **Raw JSON** - Complete trace data
+
+### Replay Jobs
+
+1. Find a job in the **Jobs** tab
+2. Click **Replay**
+3. Choose:
+   - **Return stored result** - Get cached result
+   - **Re-execute** - Run the job again
+
+---
+
+## API Integration
+
+The dashboard uses the REST API. You can also use the API directly:
+
+### Submit via API
+
+```bash
+curl -X POST http://localhost:8000/api/prompts \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "prompt_name": "researcher",
+    "inputs": {"query": "What is Laddr?"}
+  }'
+```
+
+### Get Job Status
+
+```bash
+curl http://localhost:8000/api/prompts/{prompt_id}
+```
+
+### List Jobs
+
+```bash
+curl "http://localhost:8000/api/prompts?limit=50"
+```
+
+---
+
+## Monitoring Best Practices
+
+### Watch for Errors
+
+Monitor the dashboard for:
+- **Failed Jobs** - Check error messages
+- **Timeout Errors** - Increase timeout or optimize agent
+- **Tool Errors** - Verify tool configuration
+- **LLM Errors** - Check API keys and quotas
+
+### Track Performance
+
+Use metrics to identify:
+- **Slow Agents** - High execution times
+- **High Token Usage** - Optimize prompts
+- **Queue Backlog** - Scale workers
+- **Storage Usage** - Monitor artifact storage
+
+### Debug Issues
+
+Use traces to debug:
+1. **View Full Trace** - See every step
+2. **Check Tool Results** - Verify tool outputs
+3. **Review LLM Calls** - Inspect prompts/responses
+4. **Compare Jobs** - Find patterns in failures
+
+---
+
+## Keyboard Shortcuts
+
+- **`/`** - Focus search
+- **`?`** - Show shortcuts
+- **`Esc`** - Close modals
+- **`Ctrl+K`** - Quick actions
+
+---
+
+## Troubleshooting
+
+### Dashboard Not Loading
+
+```bash
+# Check if services are running
+laddr ps
+
+# Check dashboard logs
+docker compose logs dashboard
+
+# Restart services
+docker compose restart dashboard
+```
+
+### API Connection Errors
+
+Verify API server is running:
+
+```bash
+curl http://localhost:8000/api/health
+```
+
+### No Jobs Showing
+
+Ensure workers are running:
+
+```bash
+laddr ps
+# Start workers if needed
+docker compose up -d researcher_worker coordinator_worker
+```
+
+---
+
+## Next Steps
+
+- [API Reference](/reference/api) - Complete API documentation
+- [Scaling & Operations](/guides/scaling-and-ops) - Production deployment
+- [Agent Configuration](/guides/agents/agent-config) - Configure agents
+- [Local Runtime](/guides/local-runtime) - Local development

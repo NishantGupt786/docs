@@ -1,0 +1,539 @@
+---
+title: "Agent Configuration"
+description: "Complete reference for configuring Laddr agents"
+---
+
+Complete guide to configuring Laddr agents with all available parameters and options.
+
+---
+
+## Agent Definition Structure
+
+Basic agent definition:
+
+```python
+from __future__ import annotations
+import asyncio
+import os
+from dotenv import load_dotenv
+from laddr import Agent, WorkerRunner
+from laddr.llms import openai
+from tools.web_tools import web_search, scrape_url, extract_links
+
+load_dotenv()
+
+TOOLS = [web_search, scrape_url, extract_links]
+
+researcher = Agent(
+    name="researcher",
+    role="Web Research Specialist",
+    goal="Search the web and summarize findings",
+    backstory="You are a research-focused agent who finds accurate data online.",
+    llm=openai(model="gpt-4o-mini", temperature=0.0),
+    tools=TOOLS,
+    max_retries=1,
+    max_iterations=3,
+    max_tool_calls=2,
+    timeout=45,
+    trace_enabled=True,
+)
+
+async def main():
+    runner = WorkerRunner(agent=researcher)
+    print("Starting researcher worker...")
+    await runner.start()
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+```
+
+---
+
+## Core Agent Parameters
+
+### Required Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `name` | `str` | Unique agent identifier (used in routing) |
+| `role` | `str` | Agent's role description (for LLM context) |
+| `goal` | `str` | Primary objective or task |
+| `backstory` | `str` | Context that shapes agent behavior |
+| `llm` | `LLM` | LLM configuration object |
+
+### Optional Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `tools` | `list` | `[]` | List of tool functions |
+| `max_retries` | `int` | `1` | Number of retries for failed tasks |
+| `max_iterations` | `int` | `3` | Maximum reasoning loops |
+| `max_tool_calls` | `int` | `10` | Maximum tool calls per iteration |
+| `timeout` | `int` | `300` | Task timeout in seconds |
+| `trace_enabled` | `bool` | `True` | Enable execution tracing |
+| `instructions` | `str` | `None` | Custom instructions for agent behavior |
+| `is_coordinator` | `bool` | `False` | Enable delegation tools |
+
+---
+
+## LLM Configuration
+
+### OpenAI
+
+```python
+from laddr.llms import openai
+
+agent = Agent(
+    name="researcher",
+    llm=openai(
+        model="gpt-4o-mini",
+        temperature=0.0,
+        max_tokens=2000
+    ),
+    # ... other config
+)
+
+```
+
+### Gemini
+
+```python
+from laddr.llms import gemini
+
+agent = Agent(
+    name="researcher",
+    llm=gemini(
+        model="gemini-2.5-flash",
+        temperature=0.0
+    ),
+    # ... other config
+)
+
+```
+
+### Anthropic Claude
+
+```python
+from laddr.llms import anthropic
+
+agent = Agent(
+    name="researcher",
+    llm=anthropic(
+        model="claude-3-5-sonnet-20241022",
+        temperature=0.0
+    ),
+    # ... other config
+)
+
+```
+
+### Ollama (Local)
+
+```python
+from laddr.llms import ollama
+
+agent = Agent(
+    name="researcher",
+    llm=ollama(
+        model="llama3.2:latest",
+        base_url="http://localhost:11434"
+    ),
+    # ... other config
+)
+
+```
+
+---
+
+## Environment Configuration
+
+### Queue and Database
+
+```bash
+# .env
+# Queue Backend
+QUEUE_BACKEND=redis  # or kafka, memory
+REDIS_URL=redis://localhost:6379
+KAFKA_BOOTSTRAP=kafka:9092
+
+# Database
+DB_BACKEND=sqlite  # or postgresql
+DATABASE_URL=sqlite:///./laddr.db
+# or
+DATABASE_URL=postgresql://user:pass@localhost:5432/laddr
+
+```
+
+### LLM Configuration
+
+```bash
+# .env
+# Global LLM settings
+LLM_PROVIDER=openai
+LLM_MODEL=gpt-4o-mini
+LLM_TEMPERATURE=0.0
+
+# API Keys
+OPENAI_API_KEY=sk-...
+GEMINI_API_KEY=your_gemini_api_key
+ANTHROPIC_API_KEY=sk-ant-...
+
+# Per-agent model overrides
+RESEARCHER_MODEL=gpt-4o-mini
+WRITER_MODEL=claude-3-5-sonnet-20241022
+COORDINATOR_MODEL=gemini-2.5-flash
+
+```
+
+### Tool API Keys
+
+```bash
+# .env
+SERPER_API_KEY=your_serper_api_key
+WEATHER_API_KEY=your_weather_api_key
+# ... other tool keys
+
+```
+
+---
+
+## Execution Control
+
+### Retry Configuration
+
+```python
+agent = Agent(
+    name="researcher",
+    max_retries=3,  # Retry up to 3 times on failure
+    # ... other config
+)
+
+```
+
+<Tip>
+Set `max_retries` based on task criticality. Use 1-2 for non-critical tasks, 3-5 for important tasks.
+</Tip>
+
+### Iteration Limits
+
+```python
+agent = Agent(
+    name="researcher",
+    max_iterations=5,  # Allow up to 5 reasoning loops
+    max_tool_calls=10,  # Max 10 tool calls per iteration
+    # ... other config
+)
+
+```
+
+<Warning>
+Too many iterations can lead to high costs and slow execution. Start with 3-5 iterations.
+</Warning>
+
+### Timeout Configuration
+
+```python
+agent = Agent(
+    name="researcher",
+    timeout=60,  # 60 second timeout
+    # ... other config
+)
+
+```
+
+---
+
+## Tool Configuration
+
+### Registering Tools
+
+```python
+from laddr import tool
+
+@tool(
+    name="web_search",
+    description="Search the web",
+    parameters={
+        "type": "object",
+        "properties": {
+            "query": {"type": "string"}
+        }
+    }
+)
+def web_search(query: str):
+    # Tool implementation
+    pass
+
+agent = Agent(
+    name="researcher",
+    tools=[web_search],  # Register tool
+    # ... other config
+)
+
+```
+
+### Multiple Tools
+
+```python
+agent = Agent(
+    name="researcher",
+    tools=[
+        web_search,
+        scrape_url,
+        extract_links,
+        summarize_text
+    ],
+    # ... other config
+)
+
+```
+
+---
+
+## Tracing Configuration
+
+### Enable Tracing
+
+```python
+agent = Agent(
+    name="researcher",
+    trace_enabled=True,  # Enable execution traces
+    # ... other config
+)
+
+```
+
+Traces include:
+- Task start/complete events
+- LLM calls (prompts, responses, tokens)
+- Tool calls (inputs, outputs, errors)
+- Autonomous thinking steps
+
+### View Traces
+
+```bash
+# Via dashboard
+# http://localhost:5173
+
+# Via API
+curl http://localhost:8000/api/jobs/{job_id}
+
+# Via CLI
+laddr logs researcher --follow
+
+```
+
+---
+
+## Worker Runtime
+
+### Running as Worker
+
+```python
+from laddr import Agent, WorkerRunner
+
+researcher = Agent(
+    name="researcher",
+    # ... config
+)
+
+async def main():
+    runner = WorkerRunner(agent=researcher)
+    await runner.start()
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())
+
+```
+
+### Local Execution
+
+```bash
+# Run locally without worker
+laddr run-local researcher --input '{"query": "test"}'
+
+```
+
+---
+
+## Coordinator Agents
+
+Enable delegation capabilities:
+
+```python
+coordinator = Agent(
+    name="coordinator",
+    role="Task Coordinator",
+    goal="Coordinate multi-agent workflows",
+    is_coordinator=True,  # Enables delegation tools
+    # ... other config
+)
+
+```
+
+Coordinator agents can:
+- Delegate tasks to other agents
+- Run parallel delegations
+- Coordinate multi-agent workflows
+
+See [System Tools](/guides/system-tools/custom-system-tools) for more details.
+
+---
+
+## Custom Instructions
+
+Add behavior guidance:
+
+```python
+agent = Agent(
+    name="researcher",
+    instructions="""
+    When researching:
+    1. Use web_search to find information
+    2. Prioritize recent sources (last 2 years)
+    3. Cite sources in your response
+    4. Summarize findings in 2-3 paragraphs
+    """,
+    # ... other config
+)
+
+```
+
+---
+
+## Monitoring & Debugging
+
+### View Logs
+
+```bash
+# Follow logs in real-time
+laddr logs researcher --follow
+
+# Show last 100 lines
+laddr logs researcher --tail 100
+
+```
+
+### Check Status
+
+```bash
+# Show all services
+laddr ps
+
+# Run diagnostics
+laddr check
+
+```
+
+### Dashboard
+
+Access the dashboard at `http://localhost:5173` to:
+- View real-time traces
+- Monitor token usage
+- Check system metrics
+- Review job history
+
+---
+
+## Troubleshooting
+
+### Agent Not Found
+
+Ensure agent is properly registered:
+
+```bash
+# Check agent file exists
+ls agents/researcher.py
+
+# Verify import
+python -c "from agents.researcher import researcher; print(researcher.name)"
+
+```
+
+### LLM Errors
+
+Check API keys and model names:
+
+```bash
+# Verify API key
+echo $OPENAI_API_KEY
+
+# Test API connection
+curl https://api.openai.com/v1/models \\
+  -H "Authorization: Bearer $OPENAI_API_KEY"
+
+```
+
+### Tool Errors
+
+Verify tool configuration:
+
+```bash
+# Check tool is registered
+python -c "from agents.researcher import researcher; print(researcher.tools)"
+
+# Verify tool decorator
+grep -n "@tool" tools/web_tools.py
+
+```
+
+---
+
+## Best Practices
+
+### 1. Use Descriptive Names
+
+```python
+# ✅ Good
+researcher = Agent(name="researcher", ...)
+data_analyzer = Agent(name="data_analyzer", ...)
+
+# ❌ Bad
+agent1 = Agent(name="agent1", ...)
+a = Agent(name="a", ...)
+
+```
+
+### 2. Set Appropriate Timeouts
+
+```python
+# Quick tasks
+fast_agent = Agent(timeout=30, ...)
+
+# Complex tasks
+complex_agent = Agent(timeout=300, ...)
+
+```
+
+### 3. Limit Tool Count
+
+```python
+# ✅ Good - 3-5 focused tools
+agent = Agent(tools=[tool1, tool2, tool3], ...)
+
+# ❌ Bad - Too many tools
+agent = Agent(tools=[tool1, ..., tool20], ...)
+
+```
+
+### 4. Use Environment Variables
+
+```python
+# ✅ Good - Configurable
+llm=openai(model=os.getenv("LLM_MODEL", "gpt-4o-mini"))
+
+# ❌ Bad - Hardcoded
+llm=openai(model="gpt-4o-mini")
+
+```
+
+---
+
+## Next Steps
+
+- [Agent Authoring](/guides/agents/authoring) - Design patterns and best practices
+- [Tool Configuration](/guides/tools/tool-config) - Create custom tools
+- [System Tools](/guides/system-tools/custom-system-tools) - Customize delegation
+- [Scaling & Operations](/guides/scaling-and-ops) - Production deployment

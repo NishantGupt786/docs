@@ -1,0 +1,316 @@
+---
+title: "Scaling & Operations"
+description: "Scale Laddr agents and deploy to production"
+---
+
+Learn how to scale Laddr agents horizontally and deploy to production environments.
+
+---
+
+## Horizontal Scaling
+
+### Scale Workers
+
+Scale agent workers to handle increased load:
+
+```bash
+# Scale a single agent type
+laddr scale researcher 5
+
+# Scale multiple agents
+laddr scale researcher 5
+laddr scale coordinator 3
+laddr scale writer 2
+
+```
+
+### Docker Compose Scaling
+
+Scale workers using Docker Compose:
+
+```bash
+# Scale coordinator workers to 3 instances
+docker compose up -d --scale coordinator_worker=3
+
+# Scale all workers
+docker compose up -d \\
+  --scale coordinator_worker=3 \\
+  --scale researcher_worker=3 \\
+  --scale analyzer_worker=2 \\
+  --scale writer_worker=2
+
+```
+
+---
+
+## Queue Backends
+
+### Redis (Development)
+
+Fast, lightweight queue backend for development:
+
+```bash
+# .env
+QUEUE_BACKEND=redis
+REDIS_URL=redis://localhost:6379/0
+
+```
+
+### Kafka (Production)
+
+Durable, scalable queue backend for production:
+
+```bash
+# .env
+QUEUE_BACKEND=kafka
+KAFKA_BOOTSTRAP=kafka:9092
+
+```
+
+<Tip>
+Kafka provides better message persistence and horizontal scaling capabilities for production workloads.
+</Tip>
+
+### Memory (Testing)
+
+In-memory queue for local testing:
+
+```bash
+# .env
+QUEUE_BACKEND=memory
+
+```
+
+<Warning>
+Memory backend only works within a single process. Use Redis or Kafka for multi-worker deployments.
+</Warning>
+
+---
+
+## Database Configuration
+
+### PostgreSQL (Production)
+
+Use PostgreSQL for production deployments:
+
+```bash
+# .env
+DB_BACKEND=postgresql
+DATABASE_URL=postgresql://user:password@localhost:5432/laddr
+
+```
+
+### SQLite (Development)
+
+SQLite for local development:
+
+```bash
+# .env
+DB_BACKEND=sqlite
+DATABASE_URL=sqlite:///./laddr.db
+
+```
+
+---
+
+## Monitoring
+
+### Dashboard
+
+Access the dashboard for real-time monitoring:
+
+```bash
+# Start dashboard
+laddr run dev -d
+
+# Access at http://localhost:5173
+
+```
+
+### Metrics
+
+Monitor key metrics:
+
+- **Queue Depth** - Number of pending tasks
+- **Worker Utilization** - Active workers vs idle
+- **Throughput** - Tasks processed per second
+- **Error Rate** - Failed tasks percentage
+- **Latency** - Average task completion time
+
+### Logs
+
+View and follow logs:
+
+```bash
+# Follow logs for an agent
+laddr logs researcher --follow
+
+# Show last 100 lines
+laddr logs researcher --tail 100
+
+# View all service logs
+docker compose logs -f
+
+```
+
+---
+
+## Production Deployment
+
+### Environment Variables
+
+Configure production environment:
+
+```bash
+# .env.production
+# Queue
+QUEUE_BACKEND=kafka
+KAFKA_BOOTSTRAP=kafka-cluster:9092
+
+# Database
+DB_BACKEND=postgresql
+DATABASE_URL=postgresql://user:pass@db-host:5432/laddr
+
+# Storage
+STORAGE_BACKEND=s3
+AWS_ACCESS_KEY_ID=...
+AWS_SECRET_ACCESS_KEY=...
+AWS_REGION=us-east-1
+
+# LLM
+LLM_PROVIDER=openai
+OPENAI_API_KEY=...
+
+```
+
+### Health Checks
+
+Implement health checks:
+
+```bash
+# Check system health
+laddr check
+
+# API health endpoint
+curl http://localhost:8000/api/health
+
+```
+
+### Resource Limits
+
+Set appropriate resource limits:
+
+```yaml
+# docker-compose.yml
+services:
+  researcher_worker:
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+
+```
+
+---
+
+## Load Balancing
+
+### Worker Distribution
+
+Kafka automatically distributes tasks across workers:
+
+```mermaid
+graph LR
+    Queue[Task Queue] --> W1[Worker 1]
+    Queue --> W2[Worker 2]
+    Queue --> W3[Worker 3]
+    Queue --> W4[Worker 4]
+```
+
+Each worker in a consumer group processes a subset of tasks.
+
+### Partition Strategy
+
+Configure Kafka partitions for better parallelism:
+
+```bash
+# More partitions = more parallelism
+# Create topic with 10 partitions
+kafka-topics --create \\
+  --bootstrap-server localhost:9092 \\
+  --topic laddr.tasks.researcher \\
+  --partitions 10 \\
+  --replication-factor 1
+
+```
+
+---
+
+## Performance Tuning
+
+### Worker Configuration
+
+Optimize worker settings:
+
+```bash
+# .env
+MAX_CONCURRENT_TASKS=5  # Tasks per worker
+WORKER_PREFETCH=10      # Prefetch count
+WORKER_TIMEOUT=300      # Task timeout
+
+```
+
+### Database Connection Pooling
+
+Configure connection pooling:
+
+```bash
+# .env
+DB_POOL_SIZE=20
+DB_MAX_OVERFLOW=10
+
+```
+
+---
+
+## Troubleshooting
+
+### High Queue Depth
+
+If queue depth is growing:
+
+1. Scale up workers: `laddr scale researcher 10`
+2. Check worker logs for errors
+3. Verify database/storage connectivity
+4. Check for slow tools or LLM calls
+
+### Worker Failures
+
+If workers are failing:
+
+1. Check logs: `laddr logs researcher --tail 100`
+2. Verify API keys and credentials
+3. Check resource limits (CPU/memory)
+4. Review error messages in dashboard
+
+### Performance Issues
+
+If performance is slow:
+
+1. Monitor dashboard metrics
+2. Check database query performance
+3. Review LLM response times
+4. Optimize tool implementations
+5. Consider caching strategies
+
+---
+
+## Next Steps
+
+- [Local Runtime](/guides/local-runtime) - Local development
+- [Storage & Artifacts](/guides/storage-and-artifacts) - Configure storage
+- [Agent Configuration](/guides/agents/agent-config) - Configure agents

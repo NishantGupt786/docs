@@ -1,0 +1,475 @@
+---
+title: "MCP Integration"
+description: "Connect Laddr agents to Model Context Protocol (MCP) servers"
+---
+
+The [Model Context Protocol (MCP)](https://modelcontextprotocol.io) enables agents to interact with external systems through a standardized interface. Connect your agents to any MCP server using Laddr's MCP integration.
+
+---
+
+## Quick Start
+
+Connect an agent to an MCP server:
+
+```python
+from laddr import Agent, WorkerRunner
+from laddr.llms import gemini
+from laddr.core.mcp_tools import MCPToolProvider
+
+# Create MCP tool provider
+mcp_provider = MCPToolProvider(
+    command="npx -y @modelcontextprotocol/server-filesystem /path/to/directory",
+    transport="stdio"
+)
+
+# Create the Agent with MCP tools
+agent = Agent(
+    name="filesystem_agent",
+    role="Filesystem Assistant",
+    goal="Help users explore files and directories",
+    backstory="A helpful assistant that can navigate and analyze files",
+    llm=gemini(model="gemini-2.5-flash"),
+    tools=[mcp_provider],  # MCP tools are automatically discovered and registered
+)
+
+# Run as worker
+async def main():
+    runner = WorkerRunner(agent=agent)
+    await runner.start()
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())
+
+```
+
+---
+
+## Basic Usage
+
+### Single MCP Server
+
+The simplest way to use MCP is with a single server:
+
+```python
+from laddr import Agent
+from laddr.core.mcp_tools import MCPToolProvider
+
+# Stdio transport (local command-based server)
+mcp = MCPToolProvider(
+    command="npx -y @modelcontextprotocol/server-filesystem /path",
+    transport="stdio"
+)
+
+agent = Agent(
+    name="researcher",
+    role="Research Agent",
+    goal="Research topics using MCP tools",
+    tools=[mcp],  # MCP tools automatically available
+    # ... other agent config
+)
+
+```
+
+### Multiple MCP Servers
+
+Use `MultiMCPToolProvider` to connect to multiple servers:
+
+```python
+from laddr import Agent
+from laddr.core.mcp_tools import MCPToolProvider, MultiMCPToolProvider
+
+# Create multiple providers
+filesystem_mcp = MCPToolProvider(
+    command="npx -y @modelcontextprotocol/server-filesystem /path",
+    transport="stdio",
+    server_name="filesystem"
+)
+
+git_mcp = MCPToolProvider(
+    command="uvx mcp-server-git",
+    transport="stdio",
+    server_name="git"
+)
+
+# Combine into multi-provider
+multi_mcp = MultiMCPToolProvider([filesystem_mcp, git_mcp])
+
+agent = Agent(
+    name="developer",
+    role="Developer Assistant",
+    goal="Help with filesystem and git operations",
+    tools=[multi_mcp],
+    # ... other agent config
+)
+
+```
+
+---
+
+## Transport Methods
+
+Laddr supports three MCP transport methods:
+
+### 1. Stdio Transport
+
+For local command-based MCP servers:
+
+```python
+mcp = MCPToolProvider(
+    command="npx -y @modelcontextprotocol/server-filesystem /path/to/dir",
+    transport="stdio"
+)
+
+```
+
+**Use when:**
+- Running local MCP servers
+- Server is launched via command line
+- Examples: filesystem, git, database servers
+
+### 2. HTTP Transport (Streamable HTTP)
+
+For remote HTTP-based MCP servers:
+
+```python
+mcp = MCPToolProvider(
+    url="https://docs.agno.com/mcp",
+    transport="streamable-http",  # or "http"
+    api_key="your-api-key"  # Optional
+)
+
+```
+
+**Use when:**
+- Connecting to remote MCP servers
+- Server exposes HTTP endpoint
+- Examples: hosted MCP services, cloud-based tools
+
+### 3. SSE Transport (Server-Sent Events)
+
+For real-time streaming MCP servers:
+
+```python
+mcp = MCPToolProvider(
+    url="https://mcp-server.example.com",
+    transport="sse",
+    api_key="your-api-key"  # Optional
+)
+
+```
+
+**Use when:**
+- Server uses Server-Sent Events
+- Real-time event streaming needed
+- Examples: live data feeds, streaming APIs
+
+---
+
+## Connection Lifecycle
+
+### Automatic Connection Management
+
+When you pass `MCPToolProvider` to an Agent, connections are managed automatically:
+
+```python
+mcp = MCPToolProvider(command="npx -y @modelcontextprotocol/server-filesystem /path")
+agent = Agent(
+    name="agent",
+    tools=[mcp],
+    # ... config
+)
+# Connection established automatically when agent first uses tools
+
+```
+
+### Manual Connection Management
+
+For more control, use `connect()` and `disconnect()`:
+
+```python
+mcp = MCPToolProvider(command="npx -y @modelcontextprotocol/server-filesystem /path")
+
+# Connect explicitly
+await mcp.connect()
+
+try:
+    agent = Agent(name="agent", tools=[mcp], ...)
+    # Use agent...
+finally:
+    # Disconnect when done
+    await mcp.disconnect()
+
+```
+
+### Async Context Manager
+
+You can also use MCP providers as async context managers:
+
+```python
+async with MCPToolProvider(command="npx -y @modelcontextprotocol/server-filesystem /path") as mcp:
+    agent = Agent(name="agent", tools=[mcp], ...)
+    # Connection automatically closed when exiting context
+
+```
+
+### Auto Refresh
+
+Enable `auto_refresh` to reconnect and refresh tools on each agent run:
+
+```python
+mcp = MCPToolProvider(
+    command="npx -y @modelcontextprotocol/server-filesystem /path",
+    auto_refresh=True  # Reconnect and refresh tools on each run
+)
+
+```
+
+**Use when:**
+- MCP server tools change frequently
+- Server may restart between runs
+- Tool schema updates are common
+
+---
+
+## Tool Name Collision Handling
+
+When multiple MCP servers provide tools with the same name, Laddr automatically prefixes tool names with the server identifier:
+
+```python
+# Server 1 provides: read_file
+# Server 2 provides: read_file
+
+# Result:
+# - filesystem_read_file (from server_name="filesystem")
+# - git_read_file (from server_name="git")
+
+```
+
+If `server_name` is not provided, the transport type is used as prefix (e.g., `stdio_read_file`).
+
+---
+
+## Example: Filesystem Agent
+
+Complete example of a filesystem exploration agent:
+
+```python
+import asyncio
+from laddr import Agent, WorkerRunner
+from laddr.llms import gemini
+from laddr.core.mcp_tools import MCPToolProvider
+
+async def main():
+    # Initialize MCP provider for filesystem
+    mcp = MCPToolProvider(
+        command="npx -y @modelcontextprotocol/server-filesystem /path/to/project",
+        transport="stdio",
+        server_name="filesystem"
+    )
+    
+    # Create agent
+    agent = Agent(
+        name="filesystem_assistant",
+        role="Filesystem Assistant",
+        goal="Help users explore and analyze files and directories",
+        backstory="""You are a helpful filesystem assistant. You can:
+        - Navigate directories
+        - Read and analyze files
+        - Search for content
+        - Provide file information""",
+        llm=gemini(model="gemini-2.5-flash", temperature=0.3),
+        tools=[mcp],
+        instructions="""
+        When helping users:
+        1. Use filesystem tools to explore directories
+        2. Read relevant files to answer questions
+        3. Provide clear, organized information
+        4. Be concise and focus on what the user asked
+        """
+    )
+    
+    # Run as worker
+    runner = WorkerRunner(agent=agent)
+    print("Starting filesystem assistant...")
+    await runner.start()
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+```
+
+---
+
+## Example: Multiple MCP Servers
+
+Combining filesystem and git MCP servers:
+
+```python
+from laddr import Agent
+from laddr.core.mcp_tools import MCPToolProvider, MultiMCPToolProvider
+
+# Filesystem MCP
+fs_mcp = MCPToolProvider(
+    command="npx -y @modelcontextprotocol/server-filesystem .",
+    transport="stdio",
+    server_name="filesystem"
+)
+
+# Git MCP
+git_mcp = MCPToolProvider(
+    command="uvx mcp-server-git",
+    transport="stdio",
+    server_name="git"
+)
+
+# Combine
+multi_mcp = MultiMCPToolProvider([fs_mcp, git_mcp])
+
+agent = Agent(
+    name="developer_assistant",
+    role="Developer Assistant",
+    goal="Help with codebase exploration and git operations",
+    tools=[multi_mcp],
+    # ... other config
+)
+
+```
+
+---
+
+## Best Practices
+
+### 1. Resource Cleanup
+
+Always disconnect MCP connections when done:
+
+```python
+try:
+    # Use agent...
+finally:
+    await mcp.disconnect()
+
+```
+
+### 2. Error Handling
+
+Handle connection failures gracefully:
+
+```python
+try:
+    await mcp.connect()
+except MCPError as e:
+    logger.error(f"MCP connection failed: {e}")
+    # Fallback behavior
+
+```
+
+### 3. Server Names
+
+Always provide `server_name` when using multiple servers:
+
+```python
+MCPToolProvider(..., server_name="filesystem")  # Good
+MCPToolProvider(...)  # Less clear with multiple servers
+
+```
+
+### 4. Auto Refresh
+
+Use `auto_refresh=True` for hosted servers that may restart:
+
+```python
+MCPToolProvider(url="https://...", auto_refresh=True)
+
+```
+
+### 5. Tool Discovery
+
+Tools are automatically discovered and registered - no need to explicitly list them.
+
+---
+
+## Troubleshooting
+
+### Connection Failures
+
+If MCP connection fails:
+- Check that the MCP server command is correct
+- Verify network connectivity for HTTP/SSE transports
+- Check API keys for authenticated servers
+- Review logs for detailed error messages
+
+### Tool Not Found
+
+If an MCP tool is not available:
+- Ensure MCP provider is connected: `mcp.is_connected()`
+- Check tool name (may be prefixed with server name)
+- Verify MCP server provides the expected tools
+- Use `await mcp.discover_tools()` to list available tools
+
+### Import Errors
+
+If you see import errors:
+- Install required dependencies: `pip install aiohttp`
+- For stdio transport, ensure Node.js/npx is available
+- Check that MCP server packages are installed
+
+---
+
+## Advanced Usage
+
+### Custom Tool Prefixing
+
+Control how tool names are prefixed:
+
+```python
+mcp = MCPToolProvider(
+    command="...",
+    server_name="custom_name"  # Tools will be: custom_name_tool_name
+)
+
+```
+
+### Connection State Checking
+
+Check if MCP provider is connected:
+
+```python
+if mcp.is_connected():
+    tools = await mcp.discover_tools()
+    print(f"Available tools: {[t['name'] for t in tools]}")
+
+```
+
+### Manual Tool Registration
+
+Register MCP tools manually into a ToolRegistry:
+
+```python
+from laddr.core.tooling import register_mcp_tools
+
+await register_mcp_tools(agent.tools, mcp_provider)
+
+```
+
+---
+
+## Finding MCP Servers
+
+Check out the [MCP Servers repository](https://github.com/modelcontextprotocol/servers) for a collection of available MCP servers:
+
+- **Filesystem** - File and directory operations
+- **Git** - Git repository operations
+- **PostgreSQL** - Database queries
+- **Brave Search** - Web search
+- **And many more...**
+
+---
+
+## Next Steps
+
+- [Tool Configuration](/guides/tools/tool-config) - Create custom tools
+- [Agent Configuration](/guides/agents/agent-config) - Configure agents
+- [MCP Examples](/examples/mcp-examples) - See more MCP examples
+- [Filesystem Agent Example](/examples/filesystem-agent) - Complete filesystem agent

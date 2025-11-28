@@ -1,0 +1,120 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "almond",
+  "name": "Laddr Documentation",
+  "colors": {
+    "primary": "#1FB8CD",
+    "light": "#6FE1F0",
+    "dark": "#118FA1"
+  },
+  "favicon": "/favicon.ico",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Introduction",
+            "pages": [
+              "introduction/index",
+              "introduction/quickstart",
+              "introduction/key-features"
+            ]
+          },
+          {
+            "group": "Getting Started",
+            "pages": [
+              "getting-started/install",
+              "getting-started/first-agent",
+              "getting-started/playground"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              {
+                "group": "Agents",
+                "pages": [
+                  "guides/agents/authoring",
+                  "guides/agents/agent-config"
+                ]
+              },
+              {
+                "group": "Tools",
+                "pages": [
+                  "guides/tools/tool-config",
+                  "guides/tools/mcp-integration"
+                ]
+              },
+              {
+                "group": "System Tools",
+                "pages": [
+                  "guides/system-tools/custom-system-tools-quickstart",
+                  "guides/system-tools/custom-system-tools"
+                ]
+              },
+              "guides/storage-and-artifacts",
+              "guides/scaling-and-ops",
+              "guides/local-runtime",
+              "guides/ollama",
+              "guides/traces"
+            ]
+          },
+          {
+            "group": "Reference",
+            "pages": [
+              "reference/api",
+              "reference/cli",
+              {
+                "group": "Schemas",
+                "pages": [
+                  "reference/schemas/agent-schema",
+                  "reference/schemas/tool-schema"
+                ]
+              }
+            ]
+          },
+          {
+            "group": "Examples",
+            "pages": ["examples/filesystem-agent", "examples/mcp-examples"]
+          },
+          {
+            "group": "Community",
+            "pages": ["community/contributing"]
+          }
+        ]
+      }
+    ]
+  },
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg"
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "GitHub",
+        "href": "https://github.com/AgnetLabs/Laddr"
+      }
+    ]
+  },
+  "contextual": {
+    "options": [
+      "copy",
+      "view",
+      "chatgpt",
+      "claude",
+      "perplexity",
+      "mcp",
+      "cursor",
+      "vscode"
+    ]
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/AgnetLabs/Laddr",
+      "linkedin": "https://www.linkedin.com/company/notagnet/",
+      "x": "https://x.com/AgnetLabs"
+    }
+  }
+}

@@ -1,0 +1,145 @@
+---
+title: "MCP Examples"
+description: "Collection of MCP integration examples for Laddr agents"
+---
+
+Collection of examples showing how to integrate various MCP servers with Laddr agents.
+
+---
+
+## Filesystem MCP
+
+Explore and analyze files and directories.
+
+```python
+from laddr import Agent
+from laddr.core.mcp_tools import MCPToolProvider
+
+mcp = MCPToolProvider(
+    command="npx -y @modelcontextprotocol/server-filesystem /path/to/project",
+    transport="stdio",
+    server_name="filesystem"
+)
+
+agent = Agent(
+    name="filesystem_agent",
+    tools=[mcp],
+    # ... config
+)
+
+```
+
+---
+
+## Git MCP
+
+Perform Git operations on repositories.
+
+```python
+from laddr import Agent
+from laddr.core.mcp_tools import MCPToolProvider
+
+mcp = MCPToolProvider(
+    command="uvx mcp-server-git",
+    transport="stdio",
+    server_name="git"
+)
+
+agent = Agent(
+    name="git_agent",
+    tools=[mcp],
+    # ... config
+)
+
+```
+
+---
+
+## PostgreSQL MCP
+
+Query PostgreSQL databases.
+
+```python
+from laddr import Agent
+from laddr.core.mcp_tools import MCPToolProvider
+
+mcp = MCPToolProvider(
+    command="npx -y @modelcontextprotocol/server-postgres postgresql://user:pass@localhost:5432/db",
+    transport="stdio",
+    server_name="postgres"
+)
+
+agent = Agent(
+    name="database_agent",
+    tools=[mcp],
+    # ... config
+)
+
+```
+
+---
+
+## Multiple MCP Servers
+
+Combine multiple MCP servers.
+
+```python
+from laddr import Agent
+from laddr.core.mcp_tools import MCPToolProvider, MultiMCPToolProvider
+
+# Filesystem
+fs_mcp = MCPToolProvider(
+    command="npx -y @modelcontextprotocol/server-filesystem .",
+    transport="stdio",
+    server_name="filesystem"
+)
+
+# Git
+git_mcp = MCPToolProvider(
+    command="uvx mcp-server-git",
+    transport="stdio",
+    server_name="git"
+)
+
+# Combine
+multi_mcp = MultiMCPToolProvider([fs_mcp, git_mcp])
+
+agent = Agent(
+    name="developer_assistant",
+    tools=[multi_mcp],
+    # ... config
+)
+
+```
+
+---
+
+## HTTP MCP Server
+
+Connect to remote HTTP-based MCP servers.
+
+```python
+from laddr import Agent
+from laddr.core.mcp_tools import MCPToolProvider
+
+mcp = MCPToolProvider(
+    url="https://mcp-server.example.com",
+    transport="http",
+    api_key="your-api-key"
+)
+
+agent = Agent(
+    name="remote_agent",
+    tools=[mcp],
+    # ... config
+)
+
+```
+
+---
+
+## Next Steps
+
+- [MCP Integration](/guides/tools/mcp-integration) - Complete MCP guide
+- [Filesystem Agent](/examples/filesystem-agent) - Complete filesystem example
+- [Tool Configuration](/guides/tools/tool-config) - Create custom tools

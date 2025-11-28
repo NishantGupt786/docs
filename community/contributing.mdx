@@ -1,0 +1,146 @@
+---
+title: "Contributing"
+description: "How to contribute to the Laddr project"
+---
+
+# Contributing to Laddr
+
+Thank you for your interest in contributing to Laddr! This guide will help you get started.
+
+---
+
+## Getting Started
+
+### 1. Fork the Repository
+
+Fork the [Laddr repository](https://github.com/AgnetLabs/Laddr) on GitHub.
+
+### 2. Clone Your Fork
+
+```bash
+git clone https://github.com/your-username/Laddr.git
+cd Laddr
+
+```
+
+### 3. Set Up Development Environment
+
+```bash
+# Create virtual environment
+python3 -m venv venv
+source venv/bin/activate
+
+# Install in development mode
+pip install -e lib/laddr
+
+# Install development dependencies
+pip install -r requirements-dev.txt
+
+```
+
+---
+
+## Development Workflow
+
+### 1. Create a Branch
+
+```bash
+git checkout -b feature/your-feature-name
+
+```
+
+### 2. Make Changes
+
+Make your changes following the project's coding standards.
+
+### 3. Test Your Changes
+
+```bash
+# Run tests
+pytest
+
+# Run linter
+ruff check .
+
+# Run type checker
+mypy lib/laddr
+
+```
+
+### 4. Commit Your Changes
+
+```bash
+git add .
+git commit -m "feat: Add new feature"
+
+```
+
+### 5. Push and Create Pull Request
+
+```bash
+git push origin feature/your-feature-name
+
+```
+
+Then create a pull request on GitHub.
+
+---
+
+## Code Style
+
+### Python Style
+
+- Follow PEP 8
+- Use type hints
+- Write docstrings for all functions and classes
+- Keep functions focused and small
+
+### Commit Messages
+
+Follow conventional commits:
+
+- `feat:` - New feature
+- `fix:` - Bug fix
+- `docs:` - Documentation changes
+- `refactor:` - Code refactoring
+- `test:` - Test additions/changes
+
+---
+
+## Areas for Contribution
+
+### Documentation
+
+- Improve existing documentation
+- Add examples
+- Fix typos and errors
+
+### Code
+
+- Bug fixes
+- New features
+- Performance improvements
+- Test coverage
+
+### Examples
+
+- Add example agents
+- Create tutorial content
+- Share use cases
+
+---
+
+## Questions?
+
+If you have questions, please:
+
+1. Check existing [issues on GitHub](https://github.com/AgnetLabs/Laddr/issues)
+2. [Open a new issue](https://github.com/AgnetLabs/Laddr/issues/new) for discussion
+3. Join our community discussions
+
+---
+
+## Next Steps
+
+- [Getting Started](/getting-started/install) - Setup guide
+- [Agent Configuration](/guides/agents/agent-config) - Learn about agents

@@ -1,0 +1,399 @@
+---
+title: "CLI Reference"
+description: "Complete reference for all Laddr CLI commands"
+---
+
+# Laddr CLI Reference
+
+Complete reference for all Laddr Command Line Interface (CLI) commands, options, and usage examples.
+
+---
+
+## Overview
+
+The Laddr CLI provides commands for:
+
+- **Project scaffolding** - Initialize complete project structures
+- **Agent management** - Add, configure, and run agents
+- **Docker orchestration** - Manage containerized environments
+- **Observability** - Built-in tracing, metrics, and diagnostics
+- **Development tools** - Hot reload, logging, and debugging
+
+---
+
+## Installation
+
+```bash
+# Install Laddr
+pip install laddr
+
+# Verify installation
+laddr --version
+
+# Get help
+laddr --help
+
+```
+
+---
+
+## Global Options
+
+Available for all commands:
+
+- `-h, --help` - Show help message and exit
+- `--version` - Show version and exit
+- `--debug` - Enable debug mode with full stack traces
+
+---
+
+## Project Setup
+
+### init
+
+Initialize a new Laddr project.
+
+```bash
+laddr init [PROJECT_NAME] [OPTIONS]
+
+```
+
+**Options:**
+- `PROJECT_NAME` - Name of the project (interactive if omitted)
+- `--path` - Path to create project in (default: current directory)
+
+**Examples:**
+
+```bash
+# Interactive mode
+laddr init
+
+# Specify project name
+laddr init myproject
+
+# Create in specific directory
+laddr init myproject --path /path/to/projects
+
+```
+
+---
+
+## Agent Management
+
+### add agent
+
+Add a new agent to the project.
+
+```bash
+laddr add agent AGENT_NAME [OPTIONS]
+
+```
+
+**Options:**
+- `--role` - Agent role
+- `--goal` - Agent goal
+- `--backstory` - Agent backstory (optional)
+- `--llm-provider` - LLM provider (default: gemini)
+- `--llm-model` - LLM model (default: gemini-2.5-flash)
+
+**Examples:**
+
+```bash
+# Interactive mode
+laddr add agent summarizer
+
+# Fully specified
+laddr add agent summarizer \\
+  --role "Data Summarizer" \\
+  --goal "Analyze and summarize data"
+
+```
+
+### add tool
+
+Add a new tool to an agent.
+
+```bash
+laddr add tool TOOL_NAME [OPTIONS]
+
+```
+
+**Options:**
+- `--agent` - Agent to attach tool to
+- `--description` - Tool description
+
+**Examples:**
+
+```bash
+# Interactive mode
+laddr add tool calculator
+
+# Specify agent
+laddr add tool scraper --agent researcher
+
+```
+
+---
+
+## Running & Execution
+
+### run dev
+
+Run the Laddr development environment.
+
+```bash
+laddr run dev [OPTIONS]
+
+```
+
+**Options:**
+- `--build` - Force rebuild Docker images
+- `--detach, -d` - Run in detached mode (background)
+
+**Examples:**
+
+```bash
+# Start with live logs
+laddr run dev
+
+# Start and run in background
+laddr run dev --detach
+
+# Force rebuild images
+laddr run dev --build
+
+```
+
+### run agent
+
+Run a single agent locally.
+
+```bash
+laddr run agent AGENT_NAME [OPTIONS]
+
+```
+
+**Options:**
+- `--inputs` - JSON dictionary of inputs (default: empty object)
+
+**Examples:**
+
+```bash
+# Run with query
+laddr run agent researcher --inputs '{"query":"What is Laddr?"}'
+
+# Run with no inputs
+laddr run agent coordinator
+
+```
+
+### run-local
+
+Run an agent locally using in-memory components.
+
+```bash
+laddr run-local AGENT [OPTIONS]
+
+```
+
+**Options:**
+- `--input` - JSON input to the agent (default: empty object)
+
+**Examples:**
+
+```bash
+# Run with no input
+laddr run-local researcher
+
+# Run with input
+laddr run-local researcher --input '{"query":"AI trends"}'
+
+```
+
+### prompt run
+
+Execute a prompt with an agent.
+
+```bash
+laddr prompt run PROMPT_NAME [OPTIONS]
+
+```
+
+**Options:**
+- `--input, -i` - Input as KEY=VALUE (repeatable)
+- `--json, -j` - Input as JSON string or @file.json
+- `--wait/--no-wait` - Wait for completion (default: true)
+- `--timeout` - Timeout in seconds (default: 60)
+
+**Examples:**
+
+```bash
+# Simple input
+laddr prompt run researcher --input query="What is Laddr?"
+
+# JSON input
+laddr prompt run processor --json '{"files": ["data.csv"]}'
+
+# From file
+laddr prompt run researcher --json @research-query.json
+
+```
+
+### prompt list
+
+List recent prompt executions.
+
+```bash
+laddr prompt list [OPTIONS]
+
+```
+
+**Options:**
+- `--limit` - Maximum number to show (default: 20)
+
+---
+
+## Monitoring & Debugging
+
+### logs
+
+View logs for an agent worker.
+
+```bash
+laddr logs AGENT_NAME [OPTIONS]
+
+```
+
+**Options:**
+- `--follow, -f` - Follow log output (live tail)
+- `--tail` - Number of lines to show from end
+
+**Examples:**
+
+```bash
+# View all logs
+laddr logs researcher
+
+# Follow logs
+laddr logs researcher --follow
+
+# Show last 100 lines
+laddr logs researcher --tail 100
+
+```
+
+### ps
+
+Show status of all services and workers.
+
+```bash
+laddr ps [OPTIONS]
+
+```
+
+**Options:**
+- `--format, -f` - Output format (table or json)
+
+**Examples:**
+
+```bash
+# Show status (table format)
+laddr ps
+
+# Show status (JSON format)
+laddr ps --format json
+
+```
+
+### check
+
+Run diagnostic checks for the Laddr runtime.
+
+```bash
+laddr check [OPTIONS]
+
+```
+
+**Options:**
+- `--output` - Path to write JSON report (default: diagnostic_report.json)
+
+**Examples:**
+
+```bash
+# Run diagnostics
+laddr check
+
+# Save to custom path
+laddr check --output reports/diagnostic.json
+
+```
+
+### infra
+
+Show infrastructure configuration and status.
+
+```bash
+laddr infra [OPTIONS]
+
+```
+
+**Options:**
+- `--show-config/--no-show-config` - Show configuration values (default: true)
+
+---
+
+## Service Management
+
+### scale
+
+Scale an agent worker to N replicas.
+
+```bash
+laddr scale AGENT_NAME REPLICAS
+
+```
+
+**Examples:**
+
+```bash
+# Scale to 3 replicas
+laddr scale researcher 3
+
+# Scale to 1 replica
+laddr scale researcher 1
+
+# Stop all replicas
+laddr scale researcher 0
+
+```
+
+### stop
+
+Stop all Laddr services.
+
+```bash
+laddr stop [OPTIONS]
+
+```
+
+**Options:**
+- `--volumes, -v` - Remove named volumes (warning: data loss)
+
+**Examples:**
+
+```bash
+# Stop services (preserve data)
+laddr stop
+
+# Stop services and remove volumes
+laddr stop --volumes
+
+```
+
+---
+
+## Next Steps
+
+- [API Reference](/reference/api) - REST API documentation
+- [Getting Started](/getting-started/install) - Setup guide
+- [Agent Configuration](/guides/agents/agent-config) - Configure agents

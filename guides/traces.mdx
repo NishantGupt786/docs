@@ -1,0 +1,316 @@
+---
+title: "Traces & Database"
+description: "How to configure tracing, databases, and Langfuse in Laddr"
+---
+
+# Traces & Database
+
+Laddr supports flexible observability depending on the environment you're running in.  
+This guide explains how to plug in each supported backend — SQLite, PostgreSQL, and Langfuse — and how Laddr automatically chooses the tracing mode.
+
+---
+
+## Overview
+
+Laddr supports **three tracing modes**:
+
+1. **SQLite Tracing (default)**  
+   Full local traces stored internally. Ideal for development.
+
+2. **PostgreSQL Operational Mode**  
+   Used in production. Stores jobs, prompts, memory, batches — **but disables trace storage**.
+
+3. **Langfuse Tracing (recommended for production)**  
+   External, scalable, full tracing UI + cost tracking.
+
+The runtime automatically selects the best backend based on configuration.
+
+---
+
+## Backend Selection Logic
+
+Laddr picks the tracing backend using the following priority:
+
+> **1. Langfuse** (if enabled & credentials set)  
+> **2. SQLite Internal Tracing** (if using SQLite)  
+> **3. Disabled** (if using Postgres without Langfuse)
+
+You can always verify which backend is active:
+
+```bash
+curl http://localhost:8000/api/health
+```
+
+Expected example:
+
+```json
+{
+  "components": {
+    "tracing": {
+      "enabled": true,
+      "backend": "langfuse"
+    }
+  }
+}
+```
+
+---
+
+## 1. Using SQLite (Local Development)
+
+SQLite is the default mode and requires **no configuration**.
+
+### Why SQLite?
+
+* Zero setup
+* Full trace storage
+* Best for development/debugging
+* Laddr dashboard can show all traces locally
+
+### Enable
+
+You don't need to set anything — Laddr defaults to:
+
+```bash
+DATABASE_URL=sqlite:///./laddr.db
+```
+
+Or set your custom file:
+
+```bash
+DATABASE_URL=sqlite:///./data/laddr.db
+```
+
+### Result
+
+* Full tracing enabled automatically
+* All traces visible in the `/traces` API and dashboard
+
+---
+
+## 2. Using PostgreSQL (Production Storage)
+
+Use PostgreSQL for production deployments where multiple Laddr agents/services run.
+
+### Why PostgreSQL?
+
+* Durable storage for jobs, prompts, agent registry, batches, memory
+* Supports horizontal scaling
+* Suitable for multi-instance workloads
+
+### Important:
+
+> **Trace storage is automatically disabled when using Postgres.**
+> Use Langfuse for production observability.
+
+### Enable
+
+```bash
+DB_BACKEND=postgres
+DATABASE_URL=postgresql://user:password@host:5432/laddr
+```
+
+### Result
+
+* Job/prompt/memory data stored in Postgres
+* Internal trace events are **not** written
+* Laddr expects Langfuse for observability
+
+---
+
+## 3. Enabling Langfuse (Recommended)
+
+Langfuse provides the richest observability experience:
+
+* Span tree visualization
+* Prompt + token usage
+* Cost tracking
+* Filters & analytics
+* Automatic LLM metadata aggregation
+
+### Install
+
+```bash
+pip install langfuse
+```
+
+### Configure
+
+```bash
+LANGFUSE_ENABLED=true
+LANGFUSE_PUBLIC_KEY=pk-...
+LANGFUSE_SECRET_KEY=sk-...
+LANGFUSE_HOST=https://cloud.langfuse.com
+```
+
+### Result
+
+* Laddr stops writing traces to SQLite/Postgres
+* All traces streamed to Langfuse
+* Langfuse becomes the single tracing backend
+
+---
+
+## 4. Example Configurations
+
+Below are realistic configurations for typical deployments.
+
+---
+
+### Local Development (SQLite + Tracing)
+
+```bash
+DATABASE_URL=sqlite:///./laddr.db
+DB_BACKEND=sqlite
+
+ENABLE_TRACING=true
+LANGFUSE_ENABLED=false
+```
+
+Outcome:
+
+* Full trace logs stored in SQLite
+* Inspect traces in dashboard or `/api/traces`
+
+---
+
+### Production Deployment (Postgres + Langfuse)
+
+```bash
+DB_BACKEND=postgres
+DATABASE_URL=postgresql://user:pass@host:5432/laddr
+
+LANGFUSE_ENABLED=true
+LANGFUSE_PUBLIC_KEY=pk-123
+LANGFUSE_SECRET_KEY=sk-456
+LANGFUSE_HOST=https://cloud.langfuse.com
+
+ENABLE_TRACING=true  # Langfuse handles tracing
+```
+
+Outcome:
+
+* Reliable operational data in Postgres
+* Full observability in Langfuse
+* No duplicate trace writes
+
+---
+
+### Hybrid Cloud Environment (Local Tracing + Remote Postgres)
+
+Useful when you're running a local Laddr node but using a shared Postgres cluster.
+
+```bash
+DB_BACKEND=sqlite   # Use SQLite for traces
+DATABASE_URL=sqlite:///./local_traces.db
+
+REMOTE_RESULT_DB_URL=postgresql://user:pass@host:5432/laddr
+```
+
+Outcome:
+
+* Local tracing with SQLite
+* Remote Postgres for persistent job/prompt data
+
+---
+
+## 5. Common Commands & Usage
+
+### Check tracing backend
+
+```bash
+curl http://localhost:8000/api/health
+```
+
+### Get traces (SQLite only)
+
+```bash
+curl http://localhost:8000/api/traces?limit=100
+curl http://localhost:8000/api/traces?job_id=<id>
+curl http://localhost:8000/api/traces/grouped
+```
+
+### View prompt execution traces (WebSocket)
+
+```bash
+# Connect via WebSocket client
+ws://localhost:8000/api/prompts/<prompt_id>/traces
+```
+
+### Check metrics
+
+```bash
+curl http://localhost:8000/api/metrics
+```
+
+---
+
+## 6. Troubleshooting
+
+### Traces not appearing?
+
+Check health:
+
+```bash
+curl http://localhost:8000/api/health
+```
+
+Likely causes:
+
+* You're using **Postgres** → internal traces are disabled
+* Langfuse credentials missing
+* `LANGFUSE_ENABLED=true` but SDK not installed
+* `ENABLE_TRACING=false`
+
+---
+
+### Langfuse not receiving spans?
+
+Check:
+
+1. `pip install langfuse`
+2. Valid public/secret keys
+3. Host reachable
+4. Runtime logs for connection issues
+
+---
+
+### SQLite issues?
+
+* File permission errors in Linux
+* Wrong directory path
+* Conflicts when running multiple processes
+
+---
+
+## 7. Best Practices
+
+### For Development
+
+* Use **SQLite**
+* Always keep internal tracing enabled
+* Inspect traces in the dashboard frequently
+* Use Langfuse selectively when debugging advanced workflows
+
+### For Production
+
+* Use **PostgreSQL**
+* Never rely on internal DB for tracing
+* Always enable **Langfuse**
+* Configure retention policies
+* Track LLM & tool call latency in Langfuse
+
+### For Scaling
+
+* Separate operational data (Postgres) from observability (Langfuse)
+* Use container orchestration (Docker/Kubernetes)
+* Distribute agents across workers but centralize your Postgres + Langfuse
+
+---
+
+## Next Steps
+
+- [Storage & Artifacts](/guides/storage-and-artifacts) - Configure artifact storage
+- [Scaling & Operations](/guides/scaling-and-ops) - Production deployment
+- [Local Runtime](/guides/local-runtime) - Local development setup
+- [Agent Configuration](/guides/agents/agent-config) - Configure agents

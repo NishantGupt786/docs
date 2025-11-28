@@ -1,0 +1,328 @@
+---
+title: "Your First Agent"
+description: "Build your first Laddr agent from scratch"
+---
+
+Learn to create a custom agent that can search the web and summarize information.
+
+---
+
+## Overview
+
+In this tutorial, you'll build a **researcher agent** that:
+1. Takes a research query
+2. Searches the web for information
+3. Summarizes the findings
+
+---
+
+## Step 1: Create the Agent File
+
+Create `agents/researcher.py`:
+
+```python
+from __future__ import annotations
+import asyncio
+from laddr import Agent, WorkerRunner
+from laddr.llms import gemini
+from tools.web_tools import web_search
+
+# Define the researcher agent
+researcher = Agent(
+    name="researcher",
+    role="Web Research Specialist",
+    goal="Search the web and summarize findings",
+    backstory="""You are a research-focused agent who finds accurate 
+    data online and presents it clearly.""",
+    llm=gemini(model="gemini-2.5-flash", temperature=0.0),
+    tools=[web_search],
+    max_retries=1,
+    max_iterations=3,
+    max_tool_calls=2,
+    timeout=45,
+    trace_enabled=True,
+)
+
+async def main():
+    runner = WorkerRunner(agent=researcher)
+    print("Starting researcher worker...")
+    await runner.start()
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+```
+
+---
+
+## Step 2: Create a Tool
+
+Create `tools/web_tools.py`:
+
+```python
+from laddr import tool
+import os
+import requests
+
+@tool(
+    name="web_search",
+    description="Search the web for information on a given topic",
+    parameters={
+        "type": "object",
+        "properties": {
+            "query": {
+                "type": "string",
+                "description": "The search query"
+            }
+        },
+        "required": ["query"]
+    }
+)
+def web_search(query: str) -> dict:
+    """Search the web using Serper API."""
+    api_key = os.getenv("SERPER_API_KEY")
+    if not api_key:
+        return {"error": "SERPER_API_KEY not set"}
+    
+    url = "https://google.serper.dev/search"
+    headers = {
+        "X-API-KEY": api_key,
+        "Content-Type": "application/json"
+    }
+    payload = {"q": query}
+    
+    try:
+        response = requests.post(url, json=payload, headers=headers)
+        response.raise_for_status()
+        data = response.json()
+        
+        # Extract top results
+        results = []
+        if "organic" in data:
+            for item in data["organic"][:5]:
+                results.append({
+                    "title": item.get("title", ""),
+                    "snippet": item.get("snippet", ""),
+                    "link": item.get("link", "")
+                })
+        
+        return {
+            "status": "success",
+            "results": results,
+            "total": len(results)
+        }
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+```
+
+<Tip>
+You can use any search API. Serper is used here as an example. You can also use DuckDuckGo, Bing, or other providers.
+</Tip>
+
+---
+
+## Step 3: Set Environment Variables
+
+Add to your `.env` file:
+
+```bash
+GEMINI_API_KEY=your_gemini_api_key
+SERPER_API_KEY=your_serper_api_key
+```
+
+---
+
+## Step 4: Run the Agent
+
+### Option A: Local Run (Fastest)
+
+```bash
+laddr run-local researcher --input '{"query": "What is Laddr?"}'
+```
+
+### Option B: As a Worker
+
+Start the worker:
+
+```bash
+python agents/researcher.py
+```
+
+In another terminal, submit a task:
+
+```bash
+laddr prompt run researcher --input query="Latest AI trends"
+```
+
+---
+
+## Step 5: Understand the Output
+
+You should see output like:
+
+```
+Starting researcher worker...
+Processing task: {'query': 'What is Laddr?'}
+Using tool: web_search
+Tool result: {'status': 'success', 'results': [...], 'total': 5}
+Generating summary...
+Agent response: Based on my research, Laddr is an open-source multi-agent framework...
+Task completed successfully
+```
+
+---
+
+## Understanding Agent Configuration
+
+Let's break down the agent configuration:
+
+### Core Parameters
+
+```python
+Agent(
+    name="researcher",           # Unique identifier
+    role="Web Research Specialist",  # Agent's role
+    goal="Search the web...",    # What the agent does
+    backstory="...",             # Context for behavior
+)
+```
+
+### LLM Configuration
+
+```python
+llm=gemini(
+    model="gemini-2.5-flash",    # Model name
+    temperature=0.0              # Lower = more deterministic
+)
+
+```
+
+### Execution Control
+
+```python
+max_retries=1,        # Retry failed tasks once
+max_iterations=3,      # Max reasoning loops
+max_tool_calls=2,      # Max tool calls per iteration
+timeout=45,            # Timeout in seconds
+
+```
+
+---
+
+## Adding More Tools
+
+Add additional tools to your agent:
+
+```python
+from tools.web_tools import web_search, scrape_url, extract_links
+
+researcher = Agent(
+    name="researcher",
+    # ... other config
+    tools=[web_search, scrape_url, extract_links],  # Multiple tools
+)
+
+```
+
+---
+
+## Advanced: Custom Instructions
+
+Add custom instructions to guide agent behavior:
+
+```python
+researcher = Agent(
+    name="researcher",
+    # ... other config
+    instructions="""
+    When researching:
+    1. Use web_search to find relevant information
+    2. Focus on recent and authoritative sources
+    3. Summarize findings concisely
+    4. Cite sources when possible
+    """,
+)
+
+```
+
+---
+
+## Testing Your Agent
+
+Test with different queries:
+
+```bash
+# Simple query
+laddr run-local researcher --input '{"query": "Python async programming"}'
+
+# Complex query
+laddr run-local researcher --input '{"query": "Compare Laddr vs LangGraph"}'
+
+```
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Agent Configuration"
+    icon="cog"
+    href="/guides/agents/agent-config"
+  >
+    Learn all agent configuration options
+  </Card>
+  <Card
+    title="Tool Development"
+    icon="wrench"
+    href="/guides/tools/tool-config"
+  >
+    Create more sophisticated tools
+  </Card>
+  <Card
+    title="Agent Authoring"
+    icon="pen"
+    href="/guides/agents/authoring"
+  >
+    Best practices for agent design
+  </Card>
+  <Card
+    title="MCP Integration"
+    icon="plug"
+    href="/guides/tools/mcp-integration"
+  >
+    Connect to MCP servers
+  </Card>
+</CardGroup>
+
+---
+
+## Troubleshooting
+
+### Agent Not Found
+
+Ensure your agent file is in the `agents/` directory and properly imported.
+
+### Tool Errors
+
+Check that:
+- Tool is properly decorated with `@tool`
+- Parameters match the schema
+- API keys are set in `.env`
+
+### LLM Errors
+
+Verify:
+- API key is valid
+- Model name is correct
+- Network connectivity
+
+---
+
+## Next Steps
+
+- [Agent Configuration](/guides/agents/agent-config) - Complete configuration reference
+- [Tool Development](/guides/tools/tool-config) - Build custom tools
+- [Agent Authoring](/guides/agents/authoring) - Design patterns
+- [Playground](/getting-started/playground) - Use the dashboard

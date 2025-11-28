@@ -1,0 +1,170 @@
+---
+title: "Storage & Artifacts"
+description: "Configure storage backends and manage artifacts in Laddr"
+---
+
+Laddr supports multiple storage backends for storing large data artifacts, files, and agent outputs.
+
+---
+
+## Storage Backends
+
+### MinIO (S3-Compatible)
+
+MinIO is an S3-compatible object storage service, ideal for development and production.
+
+```bash
+# .env
+STORAGE_BACKEND=minio
+MINIO_ENDPOINT=localhost:9000
+MINIO_ACCESS_KEY=minioadmin
+MINIO_SECRET_KEY=minioadmin
+MINIO_SECURE=false  # Set to true for HTTPS
+
+```
+
+### AWS S3
+
+Use AWS S3 for production deployments:
+
+```bash
+# .env
+STORAGE_BACKEND=s3
+AWS_ACCESS_KEY_ID=your_access_key
+AWS_SECRET_ACCESS_KEY=your_secret_key
+AWS_REGION=us-east-1
+S3_BUCKET=laddr-artifacts
+
+```
+
+### Local File System
+
+For development and testing:
+
+```bash
+# .env
+STORAGE_BACKEND=local
+STORAGE_PATH=./storage
+
+```
+
+---
+
+## Artifact Storage
+
+### Storing Artifacts
+
+Use the artifact storage system tool to store large data:
+
+```python
+from laddr import Agent
+
+# Artifacts are automatically stored when using system tools
+result = await agent.delegate_task(
+    agent_name="processor",
+    task_description="Process large dataset",
+    task="process",
+    task_data={"data": large_dataset}  # Automatically stored if large
+)
+
+```
+
+### Custom Artifact Storage
+
+Override artifact storage for custom behavior:
+
+```python
+from laddr import override_system_tool, ArtifactStorageTool
+
+@override_system_tool("system_store_artifact")
+async def custom_storage(
+    data: dict,
+    artifact_type: str,
+    metadata: dict = None,
+    bucket: str = None,
+    _artifact_storage=None,
+    **kwargs
+):
+    """Custom artifact storage with compression."""
+    storage_tool = ArtifactStorageTool(
+        storage_backend=_artifact_storage,
+        default_bucket=bucket or "artifacts"
+    )
+    
+    # Add custom logic (compression, encryption, etc.)
+    return await storage_tool.store_artifact(
+        data=data,
+        artifact_type=artifact_type,
+        metadata=metadata,
+        bucket=bucket
+    )
+
+```
+
+---
+
+## Configuration
+
+### Bucket Configuration
+
+Configure default buckets:
+
+```bash
+# .env
+STORAGE_DEFAULT_BUCKET=artifacts
+STORAGE_ARTIFACTS_BUCKET=laddr-artifacts
+STORAGE_LOGS_BUCKET=laddr-logs
+
+```
+
+### Storage Limits
+
+Set storage limits and retention:
+
+```bash
+# .env
+STORAGE_MAX_SIZE=1073741824  # 1GB in bytes
+STORAGE_RETENTION_DAYS=30
+
+```
+
+---
+
+## Best Practices
+
+### 1. Use Appropriate Backends
+
+- **Development**: Local file system or MinIO
+- **Production**: AWS S3 or MinIO cluster
+- **Testing**: In-memory or local file system
+
+### 2. Organize by Bucket
+
+Use different buckets for different artifact types:
+
+```python
+# Store different types in different buckets
+await store_artifact(data, artifact_type="result", bucket="results")
+await store_artifact(data, artifact_type="log", bucket="logs")
+await store_artifact(data, artifact_type="cache", bucket="cache")
+
+```
+
+### 3. Set Retention Policies
+
+Configure automatic cleanup:
+
+```bash
+# .env
+STORAGE_RETENTION_DAYS=30  # Delete artifacts older than 30 days
+STORAGE_CLEANUP_INTERVAL=3600  # Run cleanup every hour
+
+```
+
+---
+
+## Next Steps
+
+- [System Tools](/guides/system-tools/custom-system-tools) - Customize artifact storage
+- [Scaling & Operations](/guides/scaling-and-ops) - Production deployment
+- [Agent Configuration](/guides/agents/agent-config) - Configure agents

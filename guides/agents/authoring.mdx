@@ -1,0 +1,392 @@
+---
+title: "Agent Authoring"
+description: "Best practices and patterns for designing effective agents"
+---
+
+Learn best practices for designing and authoring effective Laddr agents.
+
+---
+
+## Agent Design Principles
+
+### Single Responsibility
+
+Each agent should have a clear, focused purpose:
+
+```python
+# ✅ Good - Focused agent
+researcher = Agent(
+    name="researcher",
+    role="Web Research Specialist",
+    goal="Search the web and find accurate information",
+    # ...
+)
+
+# ❌ Bad - Too broad
+general_agent = Agent(
+    name="general_agent",
+    role="Does everything",
+    goal="Handle all tasks",
+    # ...
+)
+
+```
+
+### Clear Role Definition
+
+Define the agent's role clearly:
+
+```python
+researcher = Agent(
+    name="researcher",
+    role="Web Research Specialist",  # What the agent is
+    goal="Find and summarize information from the web",  # What it does
+    backstory="""You are an expert researcher with years of experience
+    finding accurate information online. You prioritize recent, authoritative
+    sources and present findings clearly.""",  # How it behaves
+)
+
+```
+
+### Appropriate Tools
+
+Give agents only the tools they need:
+
+```python
+# ✅ Good - Relevant tools
+researcher = Agent(
+    name="researcher",
+    tools=[web_search, scrape_url, extract_links],  # All research-related
+)
+
+# ❌ Bad - Unnecessary tools
+researcher = Agent(
+    name="researcher",
+    tools=[web_search, calculator, weather_api],  # Calculator not needed
+)
+
+```
+
+---
+
+## Agent Patterns
+
+### Coordinator Pattern
+
+A coordinator agent delegates tasks to specialized workers:
+
+```python
+coordinator = Agent(
+    name="coordinator",
+    role="Task Coordinator",
+    goal="Break down complex tasks and delegate to specialists",
+    backstory="""You are an experienced project manager who breaks down
+    complex tasks into smaller, manageable pieces and assigns them to
+    the right specialists.""",
+    instructions="""
+    When given a task:
+    1. Analyze the requirements
+    2. Break it into subtasks
+    3. Delegate to appropriate agents
+    4. Synthesize results
+    """,
+    is_coordinator=True,  # Enables delegation tools
+)
+
+```
+
+### Worker Pattern
+
+Specialized workers that handle specific tasks:
+
+```python
+researcher = Agent(
+    name="researcher",
+    role="Research Specialist",
+    goal="Conduct thorough research on given topics",
+    # Focused on one task type
+)
+
+writer = Agent(
+    name="writer",
+    role="Content Writer",
+    goal="Write clear, engaging content",
+    # Focused on writing
+)
+
+```
+
+### Pipeline Pattern
+
+Agents in a sequential pipeline:
+
+```python
+# Agent 1: Research
+researcher = Agent(name="researcher", ...)
+
+# Agent 2: Analyze
+analyzer = Agent(name="analyzer", ...)
+
+# Agent 3: Write
+writer = Agent(name="writer", ...)
+
+# Usage: researcher → analyzer → writer
+
+```
+
+---
+
+## Instructions Design
+
+### Clear Instructions
+
+Write specific, actionable instructions:
+
+```python
+agent = Agent(
+    name="analyzer",
+    instructions="""
+    When analyzing data:
+    1. First, identify the data type and structure
+    2. Look for patterns, trends, and anomalies
+    3. Calculate relevant statistics
+    4. Summarize findings in 2-3 bullet points
+    5. Highlight any concerns or recommendations
+    """,
+)
+
+```
+
+### Avoid Ambiguity
+
+Be explicit about expected behavior:
+
+```python
+# ✅ Good - Clear expectations
+agent = Agent(
+    instructions="""
+    Always cite sources when providing information.
+    Use the format: [Source Name](URL)
+    """,
+)
+
+# ❌ Bad - Vague
+agent = Agent(
+    instructions="Be helpful and accurate",
+)
+
+```
+
+### Include Examples
+
+Provide examples in instructions:
+
+```python
+agent = Agent(
+    instructions="""
+    Format responses as JSON with these fields:
+    - summary: Brief summary (max 100 words)
+    - key_points: Array of 3-5 key points
+    - sources: Array of source URLs
+    
+    Example:
+    {
+      "summary": "...",
+      "key_points": ["...", "..."],
+      "sources": ["https://...", "https://..."]
+    }
+    """,
+)
+
+```
+
+---
+
+## Tool Selection
+
+### Match Tools to Role
+
+Select tools that align with the agent's purpose:
+
+```python
+# Research agent needs web tools
+researcher = Agent(
+    name="researcher",
+    tools=[web_search, scrape_url, extract_links],
+)
+
+# Data analyst needs data tools
+analyst = Agent(
+    name="analyst",
+    tools=[read_csv, calculate_stats, generate_chart],
+)
+
+```
+
+### Limit Tool Count
+
+Too many tools can confuse the agent:
+
+```python
+# ✅ Good - 3-5 focused tools
+agent = Agent(
+    tools=[tool1, tool2, tool3],  # Manageable set
+)
+
+# ❌ Bad - Too many tools
+agent = Agent(
+    tools=[tool1, tool2, ..., tool20],  # Overwhelming
+)
+
+```
+
+---
+
+## Error Handling
+
+### Set Appropriate Retries
+
+```python
+agent = Agent(
+    name="researcher",
+    max_retries=2,  # Retry transient failures
+    timeout=60,     # Prevent hanging
+)
+
+```
+
+### Handle Tool Errors
+
+Instruct agents to handle errors gracefully:
+
+```python
+agent = Agent(
+    instructions="""
+    If a tool fails:
+    1. Try an alternative approach
+    2. If no alternative, report the error clearly
+    3. Suggest what information is missing
+    """,
+)
+
+```
+
+---
+
+## Performance Optimization
+
+### Control Iterations
+
+Limit reasoning loops:
+
+```python
+agent = Agent(
+    max_iterations=3,    # Prevent infinite loops
+    max_tool_calls=5,    # Limit tool usage
+    timeout=45,          # Set timeout
+)
+
+```
+
+### Use Appropriate Models
+
+Choose models based on task complexity:
+
+```python
+# Simple tasks - Fast, cheap model
+simple_agent = Agent(
+    llm=gemini(model="gemini-2.5-flash"),  # Fast
+)
+
+# Complex reasoning - Better model
+complex_agent = Agent(
+    llm=gemini(model="gemini-2.0-flash-exp"),  # More capable
+)
+
+```
+
+---
+
+## Testing Agents
+
+### Unit Testing
+
+Test agent logic in isolation:
+
+```python
+async def test_researcher():
+    result = await researcher.process_task({
+        "query": "Test query"
+    })
+    assert result["status"] == "success"
+    assert "summary" in result
+
+```
+
+### Integration Testing
+
+Test with real tools and services:
+
+```python
+async def test_researcher_integration():
+    # Use test API keys
+    result = await researcher.process_task({
+        "query": "Python async"
+    })
+    # Verify tool calls worked
+    assert len(result["tool_calls"]) > 0
+
+```
+
+---
+
+## Common Pitfalls
+
+### Over-Complex Instructions
+
+Keep instructions focused:
+
+```python
+# ❌ Bad - Too complex
+instructions="""
+    When processing tasks, first analyze the context, then consider
+    all possible approaches, evaluate each one, consider edge cases,
+    think about error handling, plan the execution, execute carefully,
+    verify results, and finally format the output...
+    """
+
+# ✅ Good - Clear and focused
+instructions="""
+    Process the task in 3 steps:
+    1. Analyze the input
+    2. Execute the required action
+    3. Format the result
+    """
+
+```
+
+### Conflicting Instructions
+
+Ensure instructions don't conflict:
+
+```python
+# ❌ Bad - Conflicting
+instructions="""
+    Always be concise. Provide detailed explanations with examples.
+    """
+
+# ✅ Good - Consistent
+instructions="""
+    Provide concise summaries with 2-3 key examples when relevant.
+    """
+
+```
+
+---
+
+## Next Steps
+
+- [Agent Configuration](/guides/agents/agent-config) - Complete configuration reference
+- [Tool Development](/guides/tools/tool-config) - Create custom tools
+- [Scaling & Operations](/guides/scaling-and-ops) - Production deployment
+- [Examples](/examples/filesystem-agent) - See agent examples

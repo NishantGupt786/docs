@@ -1,0 +1,241 @@
+---
+title: "API Reference"
+description: "Complete REST API documentation for Laddr"
+---
+
+Complete documentation of all Laddr API endpoints.
+
+---
+
+## Base URL
+
+All API requests should be made to:
+
+**http://localhost:8000**
+
+<Tip>
+For production deployments, replace `localhost` with your server's hostname or IP address.
+</Tip>
+
+---
+
+## Authentication
+
+Currently, the API does not require authentication. For production deployments, consider adding API key authentication.
+
+---
+
+## Health
+
+Check the system's health status.
+
+```http
+GET /api/health
+
+```
+
+**Response:**
+
+```json
+{
+  "status": "healthy",
+  "queue": true,
+  "database": true,
+  "version": "x.y.z"
+}
+
+```
+
+---
+
+## Prompts (Preferred)
+
+The prompts API is the recommended way to submit tasks to agents.
+
+### Create Prompt
+
+Submit a new prompt execution.
+
+```http
+POST /api/prompts
+Content-Type: application/json
+
+{
+  "prompt_name": "researcher",
+  "inputs": {
+    "query": "What is Laddr?"
+  }
+}
+
+```
+
+**Response:**
+
+```json
+{
+  "prompt_id": "abc-123-def-456",
+  "status": "pending",
+  "created_at": "2024-01-01T00:00:00Z"
+}
+
+```
+
+### Get Prompt
+
+Retrieve details of a specific prompt execution.
+
+```http
+GET /api/prompts/{prompt_id}
+
+```
+
+**Response:**
+
+```json
+{
+  "prompt_id": "abc-123-def-456",
+  "prompt_name": "researcher",
+  "status": "completed",
+  "inputs": {"query": "What is Laddr?"},
+  "result": {"answer": "Laddr is..."},
+  "created_at": "2024-01-01T00:00:00Z",
+  "completed_at": "2024-01-01T00:00:05Z"
+}
+
+```
+
+### List Prompts
+
+List all prompt executions with pagination.
+
+```http
+GET /api/prompts?limit=50&offset=0
+
+```
+
+**Query Parameters:**
+- `limit` - Maximum number of results (default: 50)
+- `offset` - Number of results to skip (default: 0)
+
+**Response:**
+
+```json
+{
+  "prompts": [
+    {
+      "prompt_id": "abc-123",
+      "prompt_name": "researcher",
+      "status": "completed",
+      "created_at": "2024-01-01T00:00:00Z"
+    }
+  ],
+  "total": 100,
+  "limit": 50,
+  "offset": 0
+}
+
+```
+
+---
+
+## Jobs (Legacy)
+
+The jobs API is maintained for backward compatibility. Use the prompts API for new integrations.
+
+### Submit Job
+
+Submit a job using the legacy endpoint.
+
+```http
+POST /api/jobs
+Content-Type: application/json
+
+{
+  "pipeline_name": "coordinator",
+  "inputs": {"topic": "Latest AI agents"}
+}
+
+```
+
+**Response:**
+
+```json
+{
+  "job_id": "abc-123-def-456",
+  "status": "success",
+  "result": {"output": "..."},
+  "error": null,
+  "duration_ms": 1234,
+  "agent": "coordinator"
+}
+
+```
+
+### Get Job
+
+Retrieve a specific job by ID.
+
+```http
+GET /api/jobs/{job_id}
+
+```
+
+### List Jobs
+
+List all jobs with pagination support.
+
+```http
+GET /api/jobs?limit=50&offset=0
+
+```
+
+### Replay Job
+
+Replay a previous job execution.
+
+```http
+POST /api/jobs/{job_id}/replay
+Content-Type: application/json
+
+{
+  "reexecute": false
+}
+
+```
+
+**Request Body:**
+- `reexecute` - If `true`, re-run the job. If `false`, return stored result.
+
+---
+
+## Error Responses
+
+All endpoints may return error responses in the following format:
+
+```json
+{
+  "error": "Error message",
+  "status_code": 400
+}
+
+```
+
+**Common Status Codes:**
+- `200` - Success
+- `400` - Bad Request
+- `404` - Not Found
+- `500` - Internal Server Error
+
+---
+
+## Rate Limiting
+
+Currently, there are no rate limits. For production deployments, consider implementing rate limiting.
+
+---
+
+## Next Steps
+
+- [CLI Reference](/reference/cli) - Command-line interface
+- [Agent Configuration](/guides/agents/agent-config) - Configure agents
+- [Getting Started](/getting-started/install) - Setup guide

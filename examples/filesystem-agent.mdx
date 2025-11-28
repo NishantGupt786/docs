@@ -1,0 +1,167 @@
+---
+title: "Filesystem Agent Example"
+description: "Complete example of a filesystem exploration agent using MCP"
+---
+
+A complete example of a filesystem exploration agent that can navigate directories, read files, and analyze codebases.
+
+---
+
+## Overview
+
+This agent uses the MCP filesystem server to:
+- Navigate directories
+- Read and analyze files
+- Search for content
+- Provide file information
+
+---
+
+## Setup
+
+### Install MCP Filesystem Server
+
+```bash
+# Ensure Node.js is installed
+node --version
+
+# The MCP server will be installed automatically via npx
+
+```
+
+### Create Agent
+
+```python
+# agents/filesystem_agent.py
+import asyncio
+from laddr import Agent, WorkerRunner
+from laddr.llms import gemini
+from laddr.core.mcp_tools import MCPToolProvider
+
+async def main():
+    # Initialize MCP provider for filesystem
+    mcp = MCPToolProvider(
+        command="npx -y @modelcontextprotocol/server-filesystem /path/to/project",
+        transport="stdio",
+        server_name="filesystem"
+    )
+    
+    # Create agent
+    agent = Agent(
+        name="filesystem_assistant",
+        role="Filesystem Assistant",
+        goal="Help users explore and analyze files and directories",
+        backstory="""You are a helpful filesystem assistant. You can:
+        - Navigate directories
+        - Read and analyze files
+        - Search for content
+        - Provide file information""",
+        llm=gemini(model="gemini-2.5-flash", temperature=0.3),
+        tools=[mcp],
+        instructions="""
+        When helping users:
+        1. Use filesystem tools to explore directories
+        2. Read relevant files to answer questions
+        3. Provide clear, organized information
+        4. Be concise and focus on what the user asked
+        """
+    )
+    
+    # Run as worker
+    runner = WorkerRunner(agent=agent)
+    print("Starting filesystem assistant...")
+    await runner.start()
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+```
+
+---
+
+## Usage
+
+### Run the Agent
+
+```bash
+python agents/filesystem_agent.py
+
+```
+
+### Submit Tasks
+
+```bash
+# List files in a directory
+laddr prompt run filesystem_assistant --input query="List all Python files in the src directory"
+
+# Read a specific file
+laddr prompt run filesystem_assistant --input query="Read the contents of main.py"
+
+# Search for content
+laddr prompt run filesystem_assistant --input query="Find all files containing 'async def'"
+
+```
+
+---
+
+## Example Interactions
+
+### Directory Navigation
+
+**User:** "Show me the structure of the docs directory"
+
+**Agent:** Uses `list_directory` tool to explore and presents a tree structure.
+
+### File Analysis
+
+**User:** "Analyze the main.py file and explain what it does"
+
+**Agent:** Uses `read_file` to read the file, then analyzes and explains the code.
+
+### Content Search
+
+**User:** "Find all files that import 'laddr'"
+
+**Agent:** Uses search tools to find matching files and presents results.
+
+---
+
+## Customization
+
+### Add More Tools
+
+```python
+from laddr.core.mcp_tools import MCPToolProvider, MultiMCPToolProvider
+
+# Filesystem MCP
+fs_mcp = MCPToolProvider(
+    command="npx -y @modelcontextprotocol/server-filesystem .",
+    transport="stdio",
+    server_name="filesystem"
+)
+
+# Git MCP (if needed)
+git_mcp = MCPToolProvider(
+    command="uvx mcp-server-git",
+    transport="stdio",
+    server_name="git"
+)
+
+# Combine
+multi_mcp = MultiMCPToolProvider([fs_mcp, git_mcp])
+
+agent = Agent(
+    name="developer_assistant",
+    tools=[multi_mcp],
+    # ... other config
+)
+
+```
+
+---
+
+## Next Steps
+
+- [MCP Integration](/guides/tools/mcp-integration) - Learn about MCP
+- [MCP Examples](/examples/mcp-examples) - More MCP examples
+- [Agent Configuration](/guides/agents/agent-config) - Configure agents

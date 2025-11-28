@@ -1,0 +1,85 @@
+# page.tsx
+
+## Description
+The `ConfigPage` component provides detailed documentation on configuring and running agents using the laddr framework. It covers various aspects such as agent definition structure, environment configuration, LLM configuration, core agent parameters, execution control, tool configuration, tracing configuration, worker runtime, monitoring & debugging, troubleshooting quick reference, and agent extension examples.
+
+## Usage Examples
+### Agent Definition Structure
+```python
+from __future__ import annotations
+import asyncio
+import os
+from dotenv import load_dotenv
+from laddr import Agent, WorkerRunner
+from laddr.llms import openai
+from tools.web_tools import web_search, scrape_url, extract_links
+
+load_dotenv()
+
+TOOLS = [web_search, scrape_url, extract_links]
+
+researcher = Agent(
+    name="researcher",
+    role="Web Research Specialist",
+    goal="Search the web and summarize findings",
+    backstory="You are a research-focused agent who finds accurate data online.",
+    llm=openai(model="gpt-4o-mini", temperature=0.0),
+    tools=TOOLS,
+    max_retries=1,
+    max_iterations=3,
+    max_tool_calls=2,
+    timeout=45,
+    trace_enabled=True,
+)
+
+async def main():
+    runner = WorkerRunner(agent=researcher)
+    print("Starting researcher worker...")
+    await runner.start()
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+### Environment Configuration
+```bash
+# Queue and Database
+QUEUE_BACKEND=redis
+REDIS_URL=redis://localhost:6379
+DB_BACKEND=sqlite
+DATABASE_URL=sqlite:///./laddr.db
+
+# LLM Configuration
+LLM_PROVIDER=openai
+LLM_MODEL=gpt-4o-mini
+LLM_TEMPERATURE=0.0
+OPENAI_API_KEY=sk-...
+
+# Optional: per-agent models
+RESEARCHER_MODEL=gpt-4o-mini
+WRITER_MODEL=claude-3-5-sonnet-20241022
+
+# Tool API keys 
+SERPER_API_KEY=...
+```
+
+## Parameters 
+### Core Agent Parameters 
+| Parameter     | Type | Description                       | Default  |
+|---------------|------|-----------------------------------|----------|
+| name          | str  | Unique agent identifier            | Required |
+| role          | str  | Role description for LLM           | Required |
+| goal          | str  | Task objective                     | Required |
+| backstory     | str  | Context for consistent behavior     | Required |
+| llm           | object   | LLM configuration              | Required |
+| tools         | list   | Registered functions               | []       |
+| max_retries   | int   | Retry count for failed runs        | 1        |
+| max_iterations| int   | Reasoning loops before stop        | 3        |
+
+## Return Values 
+The `ConfigPage` component renders a comprehensive guide on configuring agents using the laddr framework.
+
+## Additional Notes 
+- Ensure to follow the required sections when defining an agent.
+- Use environment variables to control behavior and external service keys.
+- Monitor and debug your agents using the provided commands.

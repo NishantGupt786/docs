@@ -1,0 +1,188 @@
+---
+title: "Tool Schema"
+description: "Complete schema reference for Laddr tool configuration"
+---
+
+Complete reference for the Laddr tool configuration schema.
+
+---
+
+## Tool Definition
+
+```python
+from laddr import tool
+
+@tool(
+    name="tool_name",
+    description="Tool description",
+    parameters={
+        "type": "object",
+        "properties": {
+            "param1": {"type": "string", "description": "..."},
+            "param2": {"type": "number", "description": "..."}
+        },
+        "required": ["param1"]
+    },
+    trace=True,
+    trace_mask=[]
+)
+def tool_function(param1: str, param2: int = 0) -> dict:
+    """Tool implementation."""
+    return {"status": "success", "data": result}
+
+```
+
+---
+
+## @tool Decorator Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | `str` | ✅ | Unique tool identifier |
+| `description` | `str` | ✅ | What the tool does |
+| `parameters` | `dict` | ✅ | JSON Schema for inputs |
+| `trace` | `bool` | ❌ | Enable tracing (default: `True`) |
+| `trace_mask` | `list` | ❌ | Fields to redact in traces |
+
+---
+
+## JSON Schema Types
+
+### String
+
+```json
+"param": {
+    "type": "string",
+    "description": "Parameter description",
+    "minLength": 1,
+    "maxLength": 100
+}
+
+```
+
+### Number
+
+```json
+"param": {
+    "type": "number",
+    "description": "Numeric parameter",
+    "minimum": 0,
+    "maximum": 100
+}
+
+```
+
+### Integer
+
+```json
+"param": {
+    "type": "integer",
+    "description": "Integer parameter",
+    "minimum": 1,
+    "maximum": 100
+}
+
+```
+
+### Boolean
+
+```json
+"param": {
+    "type": "boolean",
+    "description": "Boolean flag"
+}
+
+```
+
+### Array
+
+```json
+"param": {
+    "type": "array",
+    "items": {"type": "string"},
+    "description": "List of strings"
+}
+
+```
+
+### Object
+
+```json
+"param": {
+    "type": "object",
+    "properties": {
+        "nested": {"type": "string"}
+    },
+    "description": "Nested object"
+}
+
+```
+
+---
+
+## Complete Example
+
+```python
+from laddr import tool
+
+@tool(
+    name="weather_lookup",
+    description="Fetches current weather for a given city",
+    parameters={
+        "type": "object",
+        "properties": {
+            "city": {
+                "type": "string",
+                "description": "City name",
+                "minLength": 1
+            },
+            "units": {
+                "type": "string",
+                "description": "Temperature units",
+                "enum": ["metric", "imperial"],
+                "default": "metric"
+            }
+        },
+        "required": ["city"]
+    },
+    trace=True,
+    trace_mask=[]
+)
+def weather_lookup(city: str, units: str = "metric") -> dict:
+    """Get weather for a city."""
+    try:
+        result = get_weather(city, units)
+        return {"status": "success", "data": result}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+```
+
+---
+
+## Return Format
+
+Tools should return dictionaries with a consistent format:
+
+```python
+# Success
+return {
+    "status": "success",
+    "data": {...}
+}
+
+# Error
+return {
+    "status": "error",
+    "error": "Error message"
+}
+
+```
+
+---
+
+## Next Steps
+
+- [Agent Schema](/reference/schemas/agent-schema) - Agent configuration schema
+- [Tool Configuration](/guides/tools/tool-config) - Tool development guide
+- [MCP Integration](/guides/tools/mcp-integration) - Connect to MCP servers

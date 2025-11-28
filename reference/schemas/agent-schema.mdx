@@ -1,0 +1,151 @@
+---
+title: "Agent Schema"
+description: "Complete schema reference for Laddr agent configuration"
+---
+
+Complete reference for the Laddr agent configuration schema.
+
+---
+
+## Agent Configuration
+
+```python
+from laddr import Agent
+
+agent = Agent(
+    name="researcher",
+    role="Web Research Specialist",
+    goal="Search the web and summarize findings",
+    backstory="You are a research-focused agent...",
+    llm=llm_config,
+    tools=[tool1, tool2],
+    max_retries=1,
+    max_iterations=3,
+    max_tool_calls=10,
+    timeout=300,
+    trace_enabled=True,
+    instructions="Custom instructions...",
+    is_coordinator=False
+)
+
+```
+
+---
+
+## Required Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | `str` | Unique agent identifier |
+| `role` | `str` | Agent's role description |
+| `goal` | `str` | Primary objective or task |
+| `backstory` | `str` | Context that shapes behavior |
+| `llm` | `LLM` | LLM configuration object |
+
+---
+
+## Optional Fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `tools` | `list` | `[]` | List of tool functions |
+| `max_retries` | `int` | `1` | Number of retries for failed tasks |
+| `max_iterations` | `int` | `3` | Maximum reasoning loops |
+| `max_tool_calls` | `int` | `10` | Maximum tool calls per iteration |
+| `timeout` | `int` | `300` | Task timeout in seconds |
+| `trace_enabled` | `bool` | `True` | Enable execution tracing |
+| `instructions` | `str` | `None` | Custom instructions for behavior |
+| `is_coordinator` | `bool` | `False` | Enable delegation tools |
+
+---
+
+## LLM Configuration
+
+### OpenAI
+
+```python
+from laddr.llms import openai
+
+llm = openai(
+    model="gpt-4o-mini",
+    temperature=0.0,
+    max_tokens=2000
+)
+
+```
+
+### Gemini
+
+```python
+from laddr.llms import gemini
+
+llm = gemini(
+    model="gemini-2.5-flash",
+    temperature=0.0
+)
+
+```
+
+### Anthropic
+
+```python
+from laddr.llms import anthropic
+
+llm = anthropic(
+    model="claude-3-5-sonnet-20241022",
+    temperature=0.0
+)
+
+```
+
+### Ollama
+
+```python
+from laddr.llms import ollama
+
+llm = ollama(
+    model="llama3.2:latest",
+    base_url="http://localhost:11434"
+)
+
+```
+
+---
+
+## Example Configuration
+
+```python
+from laddr import Agent
+from laddr.llms import gemini
+from tools.web_tools import web_search
+
+researcher = Agent(
+    name="researcher",
+    role="Web Research Specialist",
+    goal="Search the web and summarize findings",
+    backstory="""You are a research-focused agent who finds accurate
+    data online and presents it clearly.""",
+    llm=gemini(model="gemini-2.5-flash", temperature=0.0),
+    tools=[web_search],
+    max_retries=1,
+    max_iterations=3,
+    max_tool_calls=2,
+    timeout=45,
+    trace_enabled=True,
+    instructions="""
+    When researching:
+    1. Use web_search to find information
+    2. Prioritize recent sources
+    3. Cite sources in your response
+    """
+)
+
+```
+
+---
+
+## Next Steps
+
+- [Tool Schema](/reference/schemas/tool-schema) - Tool configuration schema
+- [Agent Configuration](/guides/agents/agent-config) - Configuration guide
+- [Agent Authoring](/guides/agents/authoring) - Best practices

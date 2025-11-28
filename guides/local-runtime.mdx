@@ -1,0 +1,267 @@
+---
+title: "Local Runtime"
+description: "Run Laddr locally with in-memory queue and SQLite for testing and development"
+---
+
+Run Laddr agents locally using an in-memory queue and SQLite database. No Docker or Redis required — ideal for debugging, development, and performance benchmarking.
+
+---
+
+## Overview
+
+Local runtime mode uses:
+
+- **In-Memory Queue** - `MemoryBus` for single-process communication
+- **SQLite Database** - Local file-based storage for traces
+- **No External Dependencies** - No Docker, Redis, or PostgreSQL needed
+
+<Tip>
+Perfect for quick testing, debugging, and development. For multi-agent workflows with delegation, use Redis or Kafka.
+</Tip>
+
+---
+
+## Configuration
+
+Set up your environment file:
+
+```bash
+# .env
+LLM_BACKEND=openai
+QUEUE_BACKEND=memory
+DB_BACKEND=sqlite
+DATABASE_URL=sqlite:///./laddr.db
+
+OPENAI_API_KEY=sk-proj-***
+RESEARCHER_MODEL=gpt-4o-mini
+COORDINATOR_MODEL=gpt-4o-mini
+ANALYZER_MODEL=gpt-4o-mini
+WRITER_MODEL=gpt-4o-mini
+VALIDATOR_MODEL=gpt-4o-mini
+
+```
+
+<Note>
+No Redis or Docker dependencies are required. SQLite stores traces locally in `laddr.db`.
+</Note>
+
+---
+
+## Running Agents
+
+### Single Agent
+
+Run a single agent locally:
+
+```bash
+laddr run-local researcher --input '{"query": "What is Laddr?"}'
+
+```
+
+Or using the runner script:
+
+```bash
+AGENT_NAME=researcher python main.py run '{"query": "Write about AI"}'
+
+```
+
+### Agent with Tools
+
+Run an agent that uses tools:
+
+```bash
+AGENT_NAME=analyzer python main.py run '{"query": "Calculate 100 + 200 + 300"}'
+
+```
+
+---
+
+## Sequential Workflows
+
+Run multiple agents in sequence:
+
+```python
+from laddr import AgentRunner, LaddrConfig
+import asyncio
+import uuid
+
+async def test():
+    runner = AgentRunner(env_config=LaddrConfig())
+    job_id = str(uuid.uuid4())
+    inputs = {'query': 'Calculate 100 + 200 + 300'}
+
+    for agent in ['analyzer', 'writer']:
+        result = await runner.run(inputs, agent_name=agent, job_id=job_id)
+        if result.get('status') == 'success':
+            inputs = {'input': result['result']}
+
+asyncio.run(test())
+
+```
+
+---
+
+## Debugging and Traces
+
+### View Traces
+
+Traces are stored in SQLite:
+
+```bash
+sqlite3 laddr.db "SELECT agent_name, event_type, timestamp FROM traces ORDER BY id DESC LIMIT 10;"
+
+```
+
+### Common Events
+
+Trace events include:
+
+- `task_start` - Task execution started
+- `task_complete` - Task execution completed
+- `llm_usage` - LLM API call with token usage
+- `tool_call` - Tool invocation
+- `tool_error` - Tool execution error
+- `autonomous_think` - Agent reasoning step
+
+### Query Traces
+
+```bash
+# View all events for a job
+sqlite3 laddr.db "SELECT * FROM traces WHERE job_id = 'your-job-id';"
+
+# Count events by type
+sqlite3 laddr.db "SELECT event_type, COUNT(*) FROM traces GROUP BY event_type;"
+
+# View LLM token usage
+sqlite3 laddr.db "SELECT agent_name, SUM(tokens_used) FROM traces WHERE event_type = 'llm_usage' GROUP BY agent_name;"
+
+```
+
+---
+
+## Running Workers Locally
+
+### Single Worker
+
+Start a worker process:
+
+```bash
+python agents/researcher.py
+
+```
+
+### Multiple Workers
+
+Run multiple workers in separate terminals:
+
+```bash
+# Terminal 1
+python agents/coordinator.py
+
+# Terminal 2
+python agents/researcher.py
+
+# Terminal 3
+python agents/writer.py
+
+```
+
+<Warning>
+Delegation (agents handing tasks to other workers) requires a queue backend such as Redis or Kafka to route tasks between processes. MemoryBus only supports single-process communication.
+</Warning>
+
+---
+
+## Known Limitations
+
+### MemoryBus Limitations
+
+- ⚠️ **Single Process Only** - `MemoryBus` only works within one process
+- ⚠️ **No Inter-Process Delegation** - Can't delegate between separate worker processes
+- ⚠️ **No Persistence** - Messages are lost on process restart
+
+### When to Use Memory Backend
+
+✅ **Good for:**
+- Single-agent testing
+- Debugging agent logic
+- Development and prototyping
+- Performance benchmarking
+
+❌ **Not suitable for:**
+- Multi-agent workflows with delegation
+- Production deployments
+- Distributed systems
+- High availability requirements
+
+---
+
+## Guidelines
+
+### Best Practices
+
+- ✅ Use single-agent mode for debugging
+- ✅ Use sequential mode for chained workflows
+- ✅ Inspect traces to verify execution
+- ✅ Use Redis/Kafka for multi-agent delegation
+
+### Avoid
+
+- 🚫 Don't use delegation without workers
+- 🚫 Don't use for production workloads
+- 🚫 Don't expect message persistence
+
+---
+
+## Switching to Distributed Mode
+
+When ready for multi-agent workflows:
+
+### Switch to Redis
+
+```bash
+# .env
+QUEUE_BACKEND=redis
+REDIS_URL=redis://localhost:6379/0
+
+```
+
+### Switch to Kafka
+
+```bash
+# .env
+QUEUE_BACKEND=kafka
+KAFKA_BOOTSTRAP=kafka:9092
+
+```
+
+Then start workers:
+
+```bash
+# Start Redis
+docker run -d -p 6379:6379 redis
+
+# Or start Kafka
+docker compose up -d kafka
+
+# Start workers
+python agents/researcher.py
+python agents/coordinator.py
+
+```
+
+---
+
+## Notes
+
+- 🧠 `MemoryBus` is a singleton that handles agent task routing in the same process
+- 🗄️ SQLite logging ensures full trace visibility for debugging
+- 🚀 For distributed execution, switch to `QUEUE_BACKEND=redis` or `QUEUE_BACKEND=kafka`
+
+---
+
+## Next Steps
+
+- [Scaling & Operations](/guides/scaling-and-ops) - Production deployment
+- [Agent Configuration](/guides/agents/agent-config) - Configure agents
+- [Installation](/getting-started/install) - Full setup guide

@@ -1,0 +1,514 @@
+---
+title: "Tool Configuration"
+description: "Complete guide to creating and configuring tools for Laddr agents"
+---
+
+Learn how to create, configure, and use tools with Laddr agents.
+
+---
+
+## Basic Tool Structure
+
+Tools are Python functions decorated with `@tool`:
+
+```python
+from laddr import tool
+
+@tool(
+    name="weather_lookup",
+    description="Fetches current weather for a given city",
+    parameters={
+        "type": "object",
+        "properties": {
+            "city": {
+                "type": "string",
+                "description": "City name"
+            },
+            "units": {
+                "type": "string",
+                "description": "Units (metric/imperial)",
+                "default": "metric"
+            }
+        },
+        "required": ["city"]
+    }
+)
+def weather_lookup(city: str, units: str = "metric") -> dict:
+    """Tool docstring: fetch current weather."""
+    try:
+        result = get_weather(city, units)
+        return {"status": "success", "data": result}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+```
+
+---
+
+## The @tool Decorator
+
+### Syntax
+
+```python
+@tool(
+    name: str,              # Unique tool identifier
+    description: str,       # What the tool does
+    parameters: dict,       # JSON Schema for inputs
+    trace: bool = True,      # Enable tracing
+    trace_mask: list = []   # Fields to redact in traces
+)
+
+```
+
+### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | `str` | ✅ | Unique identifier used by agents |
+| `description` | `str` | ✅ | Summary of tool's purpose |
+| `parameters` | `dict` | ✅ | JSON Schema for tool inputs |
+| `trace` | `bool` | ❌ | Enable or disable logging (default: `True`) |
+| `trace_mask` | `list` | ❌ | Redact sensitive trace fields |
+
+---
+
+## JSON Schema Types
+
+### String
+
+```python
+parameters={
+    "type": "object",
+    "properties": {
+        "query": {
+            "type": "string",
+            "description": "Search query"
+        }
+    },
+    "required": ["query"]
+}
+
+```
+
+### Number
+
+```python
+parameters={
+    "type": "object",
+    "properties": {
+        "count": {
+            "type": "integer",
+            "description": "Number of results",
+            "minimum": 1,
+            "maximum": 100
+        }
+    }
+}
+
+```
+
+### Boolean
+
+```python
+parameters={
+    "type": "object",
+    "properties": {
+        "include_metadata": {
+            "type": "boolean",
+            "description": "Include metadata in response"
+        }
+    }
+}
+
+```
+
+### Array
+
+```python
+parameters={
+    "type": "object",
+    "properties": {
+        "items": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "List of items to process"
+        }
+    }
+}
+
+```
+
+### Object (Nested)
+
+```python
+parameters={
+    "type": "object",
+    "properties": {
+        "filters": {
+            "type": "object",
+            "properties": {
+                "min_price": {"type": "number"},
+                "max_price": {"type": "number"}
+            }
+        }
+    }
+}
+
+```
+
+---
+
+## Tool Patterns
+
+### API Wrapper
+
+```python
+import requests
+from laddr import tool
+
+@tool(
+    name="api_call",
+    description="Call external API",
+    parameters={
+        "type": "object",
+        "properties": {
+            "endpoint": {"type": "string"},
+            "method": {"type": "string", "enum": ["GET", "POST"]},
+            "data": {"type": "object"}
+        },
+        "required": ["endpoint"]
+    }
+)
+def api_call(endpoint: str, method: str = "GET", data: dict = None):
+    """Make API call."""
+    try:
+        if method == "GET":
+            response = requests.get(endpoint)
+        else:
+            response = requests.post(endpoint, json=data)
+        response.raise_for_status()
+        return {"status": "success", "data": response.json()}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+```
+
+### Data Transformer
+
+```python
+from laddr import tool
+
+@tool(
+    name="transform_data",
+    description="Transform data format",
+    parameters={
+        "type": "object",
+        "properties": {
+            "data": {"type": "array"},
+            "format": {"type": "string", "enum": ["json", "csv", "xml"]}
+        },
+        "required": ["data", "format"]
+    }
+)
+def transform_data(data: list, format: str) -> dict:
+    """Transform data to specified format."""
+    if format == "json":
+        return {"format": "json", "data": data}
+    elif format == "csv":
+        # Convert to CSV
+        return {"format": "csv", "data": convert_to_csv(data)}
+    # ...
+
+```
+
+### File Operations
+
+```python
+from laddr import tool
+import os
+
+@tool(
+    name="read_file",
+    description="Read file contents",
+    parameters={
+        "type": "object",
+        "properties": {
+            "file_path": {"type": "string"}
+        },
+        "required": ["file_path"]
+    }
+)
+def read_file(file_path: str) -> dict:
+    """Read file from filesystem."""
+    try:
+        if not os.path.exists(file_path):
+            return {"status": "error", "error": "File not found"}
+        
+        with open(file_path, "r") as f:
+            content = f.read()
+        
+        return {"status": "success", "content": content}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+```
+
+---
+
+## Registering Tools with Agents
+
+### Single Tool
+
+```python
+from laddr import Agent
+
+agent = Agent(
+    name="weather_agent",
+    tools=[weather_lookup],
+    # ... other config
+)
+
+```
+
+### Multiple Tools
+
+```python
+agent = Agent(
+    name="multi_tool_agent",
+    tools=[
+        weather_lookup,
+        api_call,
+        transform_data,
+        read_file
+    ],
+    # ... other config
+)
+
+```
+
+---
+
+## Tracing Configuration
+
+### Enable/Disable Tracing
+
+```python
+@tool(
+    name="sensitive_tool",
+    description="Tool with sensitive data",
+    parameters={...},
+    trace=False  # Disable tracing
+)
+def sensitive_tool(...):
+    pass
+
+```
+
+### Mask Sensitive Fields
+
+```python
+@tool(
+    name="api_with_auth",
+    description="API call with authentication",
+    parameters={...},
+    trace_mask=["api_key", "password"]  # Redact these fields
+)
+def api_with_auth(api_key: str, password: str, ...):
+    # api_key and password will be redacted in traces
+    pass
+
+```
+
+---
+
+## Error Handling
+
+### Return Error Status
+
+```python
+@tool(name="risky_tool", ...)
+def risky_tool(...):
+    try:
+        result = perform_operation()
+        return {"status": "success", "data": result}
+    except ValueError as e:
+        return {"status": "error", "error": f"Invalid input: {e}"}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+```
+
+### Raise Exceptions
+
+```python
+@tool(name="critical_tool", ...)
+def critical_tool(...):
+    if not validate_input(...):
+        raise ValueError("Invalid input")
+    
+    result = perform_operation()
+    return {"status": "success", "data": result}
+
+```
+
+<Tip>
+Return error dictionaries for recoverable errors. Raise exceptions for critical failures.
+</Tip>
+
+---
+
+## Testing Tools
+
+### Manual Testing
+
+```python
+# Test tool directly
+result = weather_lookup(city="San Francisco", units="metric")
+print(result)
+
+# Test with invalid input
+result = weather_lookup(city="")
+print(result)
+
+```
+
+### Unit Testing
+
+```python
+import pytest
+from tools.weather_tools import weather_lookup
+
+def test_weather_lookup_success():
+    result = weather_lookup(city="San Francisco")
+    assert result["status"] == "success"
+    assert "data" in result
+
+def test_weather_lookup_invalid_city():
+    result = weather_lookup(city="")
+    assert result["status"] == "error"
+
+```
+
+### Integration Testing
+
+```python
+async def test_tool_with_agent():
+    agent = Agent(
+        name="test_agent",
+        tools=[weather_lookup],
+        # ... config
+    )
+    
+    result = await agent.process_task({
+        "query": "What's the weather in San Francisco?"
+    })
+    
+    # Verify tool was called
+    assert "weather_lookup" in str(result)
+
+```
+
+---
+
+## Best Practices
+
+### 1. Clear Descriptions
+
+```python
+# ✅ Good
+@tool(
+    name="search_web",
+    description="Search the web for information on a given topic",
+    ...
+)
+
+# ❌ Bad
+@tool(
+    name="search",
+    description="Searches stuff",
+    ...
+)
+
+```
+
+### 2. Validate Inputs
+
+```python
+@tool(name="safe_tool", ...)
+def safe_tool(value: int):
+    if value < 0:
+        return {"status": "error", "error": "Value must be positive"}
+    # ... rest of implementation
+
+```
+
+### 3. Consistent Return Format
+
+```python
+# ✅ Good - Consistent format
+return {"status": "success", "data": result}
+return {"status": "error", "error": "message"}
+
+# ❌ Bad - Inconsistent
+return result
+return {"error": "message"}
+return {"success": True, "result": result}
+
+```
+
+### 4. Handle Errors Gracefully
+
+```python
+@tool(name="robust_tool", ...)
+def robust_tool(...):
+    try:
+        result = perform_operation()
+        return {"status": "success", "data": result}
+    except SpecificError as e:
+        # Handle specific error
+        return {"status": "error", "error": str(e)}
+    except Exception as e:
+        # Log unexpected errors
+        logger.error(f"Unexpected error: {e}")
+        return {"status": "error", "error": "Internal error"}
+
+```
+
+---
+
+## Advanced Patterns
+
+### Async Tools
+
+```python
+from laddr import tool
+import aiohttp
+
+@tool(name="async_api_call", ...)
+async def async_api_call(url: str):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as response:
+            return {"status": "success", "data": await response.json()}
+
+```
+
+### Tool Composition
+
+```python
+@tool(name="composite_tool", ...)
+def composite_tool(...):
+    # Use other tools internally
+    result1 = helper_tool1(...)
+    result2 = helper_tool2(...)
+    return combine_results(result1, result2)
+
+```
+
+---
+
+## Next Steps
+
+- [MCP Integration](/guides/tools/mcp-integration) - Connect to MCP servers
+- [Agent Configuration](/guides/agents/agent-config) - Configure agents
+- [System Tools](/guides/system-tools/custom-system-tools) - Custom system tools
+- [Examples](/examples/filesystem-agent) - See tool examples

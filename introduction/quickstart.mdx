@@ -1,0 +1,187 @@
+---
+title: "Quickstart"
+description: "Get started with Laddr in under 60 seconds - run your first agent"
+---
+
+Get Laddr running and execute your first agent in under 60 seconds.
+
+---
+
+## Prerequisites
+
+- Python 3.9+
+- pip installed
+- (Optional) Docker for full stack
+
+---
+
+## Step 1: Install Laddr
+
+```bash
+pip install laddr
+```
+
+Verify installation:
+
+```bash
+laddr --version
+```
+
+---
+
+## Step 2: Initialize a Project
+
+```bash
+laddr init my_agent_system
+cd my_agent_system
+```
+
+This creates a project structure with:
+- `agents/` - Your agent definitions
+- `workers/` - Worker scripts
+- `docker-compose.yml` - Docker configuration
+- `main.py` - Runner script
+
+---
+
+## Step 3: Set API Keys
+
+Create a `.env` file in your project root:
+
+```bash
+# .env
+GEMINI_API_KEY=your_gemini_api_key
+SERPER_API_KEY=your_serper_api_key
+```
+
+<Tip>
+You can use any LLM provider. Gemini is used in this example, but OpenAI, Anthropic, and Ollama are also supported.
+</Tip>
+
+---
+
+## Step 4: Add an Agent
+
+```bash
+laddr add agent researcher \\
+  --role "Research Specialist" \\
+  --goal "Find and analyze information" \\
+  --llm-model gemini-2.5-flash
+```
+
+---
+
+## Step 5: Add a Tool
+
+```bash
+laddr add tool web_search \\
+  --agent researcher \\
+  --description "Search the web for information"
+```
+
+---
+
+## Step 6: Run the Agent
+
+### Option A: Local Run (Fastest)
+
+```bash
+laddr run-local researcher --input '{"query": "What is Laddr?"}'
+```
+
+### Option B: Full Stack (Docker)
+
+```bash
+laddr run dev -d
+docker compose up -d
+```
+
+Then submit a job:
+
+```bash
+laddr prompt run researcher --input query="What is Laddr?"
+```
+
+---
+
+## Expected Output
+
+You should see:
+
+```
+Starting researcher agent...
+Processing query: What is Laddr?
+Using tool: web_search
+Found results: [...]
+Agent response: Laddr is an open-source multi-agent framework...
+Task completed successfully
+```
+
+---
+
+## What's Next?
+
+<CardGroup cols={2}>
+  <Card
+    title="Build Your First Agent"
+    icon="robot"
+    href="/getting-started/first-agent"
+  >
+    Learn to create custom agents
+  </Card>
+  <Card
+    title="Explore the Dashboard"
+    icon="gauge"
+    href="/getting-started/playground"
+  >
+    Use the web UI to monitor agents
+  </Card>
+  <Card
+    title="Agent Configuration"
+    icon="cog"
+    href="/guides/agents/agent-config"
+  >
+    Configure agents in detail
+  </Card>
+  <Card
+    title="Tool Development"
+    icon="wrench"
+    href="/guides/tools/tool-config"
+  >
+    Create custom tools
+  </Card>
+</CardGroup>
+
+---
+
+## Troubleshooting
+
+### Installation Issues
+
+If `laddr` command not found:
+
+```bash
+# Add to PATH or use python -m
+python -m laddr --version
+```
+
+### API Key Errors
+
+Ensure your `.env` file is in the project root and keys are valid.
+
+### Docker Issues
+
+If Docker commands fail, ensure Docker is running:
+
+```bash
+docker ps
+```
+
+---
+
+## Next Steps
+
+- [Installation Guide](/getting-started/install) - Detailed setup instructions
+- [First Agent Tutorial](/getting-started/first-agent) - Build a custom agent
+- [Agent Configuration](/guides/agents/agent-config) - Configure agents
+- [Tool Development](/guides/tools/tool-config) - Create custom tools

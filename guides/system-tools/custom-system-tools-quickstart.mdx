@@ -1,0 +1,289 @@
+---
+title: "Custom System Tools Quickstart"
+description: "Get started with custom system tools in 5 minutes"
+---
+
+Learn how to override Laddr's system tools to add custom behavior like logging, metrics, and rate limiting.
+
+---
+
+## What are System Tools?
+
+System tools are built-in capabilities that agents use for:
+- **Task Delegation** - Delegate tasks to other agents
+- **Parallel Delegation** - Run multiple tasks in parallel
+- **Artifact Storage** - Store and retrieve large data
+
+You can override these to add custom behavior while reusing core functionality.
+
+---
+
+## Quick Example: Add Logging
+
+Override task delegation to add logging:
+
+```python
+from laddr import override_system_tool, TaskDelegationTool
+import logging
+
+logger = logging.getLogger(__name__)
+
+@override_system_tool("system_delegate_task")
+async def logged_delegation(
+    agent_name: str,
+    task_description: str,
+    task: str,
+    task_data: dict = None,
+    timeout_seconds: int = 300,
+    _message_bus=None,
+    _artifact_storage=None,
+    _agent=None
+):
+    """Delegation with logging."""
+    
+    logger.info(f"Delegating to {agent_name}: {task_description}")
+    
+    # Reuse base tool for actual delegation
+    delegation_tool = TaskDelegationTool(_message_bus, _artifact_storage, _agent)
+    result = await delegation_tool.delegate_task(
+        agent_name=agent_name,
+        task_description=task_description,
+        task=task,
+        task_data=task_data,
+        timeout_seconds=timeout_seconds
+    )
+    
+    logger.info(f"Delegation complete: {result}")
+    return result
+
+```
+
+That's it! Your custom delegation is now active.
+
+---
+
+## Common Use Cases
+
+### 1. Add Metrics
+
+Track delegation metrics:
+
+```python
+from laddr import override_system_tool, TaskDelegationTool
+import time
+
+metrics = {"count": 0, "total_time": 0.0}
+
+@override_system_tool("system_delegate_task")
+async def metered_delegation(
+    agent_name: str,
+    task_description: str,
+    task: str,
+    task_data: dict = None,
+    timeout_seconds: int = 300,
+    _message_bus=None,
+    _artifact_storage=None,
+    _agent=None
+):
+    """Delegation with metrics."""
+    
+    start_time = time.time()
+    metrics["count"] += 1
+    
+    delegation_tool = TaskDelegationTool(_message_bus, _artifact_storage, _agent)
+    result = await delegation_tool.delegate_task(
+        agent_name=agent_name,
+        task_description=task_description,
+        task=task,
+        task_data=task_data,
+        timeout_seconds=timeout_seconds
+    )
+    
+    duration = time.time() - start_time
+    metrics["total_time"] += duration
+    
+    return result
+
+```
+
+### 2. Add Rate Limiting
+
+Control delegation rate:
+
+```python
+from laddr import override_system_tool, TaskDelegationTool
+import asyncio
+import time
+
+class RateLimiter:
+    def __init__(self, max_per_second: int):
+        self.max_per_second = max_per_second
+        self.last_call = 0
+        
+    async def wait(self):
+        now = time.time()
+        elapsed = now - self.last_call
+        if elapsed < (1.0 / self.max_per_second):
+            await asyncio.sleep((1.0 / self.max_per_second) - elapsed)
+        self.last_call = time.time()
+
+rate_limiter = RateLimiter(max_per_second=5)
+
+@override_system_tool("system_delegate_task")
+async def rate_limited_delegation(
+    agent_name: str,
+    task_description: str,
+    task: str,
+    task_data: dict = None,
+    timeout_seconds: int = 300,
+    _message_bus=None,
+    _artifact_storage=None,
+    _agent=None
+):
+    """Rate-limited delegation."""
+    
+    await rate_limiter.wait()
+    
+    delegation_tool = TaskDelegationTool(_message_bus, _artifact_storage, _agent)
+    return await delegation_tool.delegate_task(
+        agent_name=agent_name,
+        task_description=task_description,
+        task=task,
+        task_data=task_data,
+        timeout_seconds=timeout_seconds
+    )
+
+```
+
+### 3. Add Retries
+
+Automatic retry on failure:
+
+```python
+from laddr import override_system_tool, TaskDelegationTool
+import asyncio
+import logging
+
+logger = logging.getLogger(__name__)
+
+@override_system_tool("system_delegate_task")
+async def retry_delegation(
+    agent_name: str,
+    task_description: str,
+    task: str,
+    task_data: dict = None,
+    timeout_seconds: int = 300,
+    max_retries: int = 3,
+    _message_bus=None,
+    _artifact_storage=None,
+    _agent=None
+):
+    """Delegation with automatic retries."""
+    
+    delegation_tool = TaskDelegationTool(_message_bus, _artifact_storage, _agent)
+    
+    for attempt in range(max_retries):
+        try:
+            result = await delegation_tool.delegate_task(
+                agent_name=agent_name,
+                task_description=task_description,
+                task=task,
+                task_data=task_data,
+                timeout_seconds=timeout_seconds
+            )
+            return result
+            
+        except Exception as e:
+            logger.warning(f"Attempt {attempt + 1} failed: {e}")
+            
+            if attempt == max_retries - 1:
+                raise
+                
+            # Exponential backoff
+            await asyncio.sleep(2 ** attempt)
+
+```
+
+---
+
+## Available System Tools
+
+You can override these system tools:
+
+| Tool | Purpose | Base Class |
+|------|---------|------------|
+| `system_delegate_task` | Single task delegation | `TaskDelegationTool` |
+| `system_delegate_parallel` | Parallel multi-task delegation | `ParallelDelegationTool` |
+| `system_store_artifact` | Store data artifact | `ArtifactStorageTool` |
+| `system_retrieve_artifact` | Retrieve data artifact | `ArtifactStorageTool` |
+
+---
+
+## Import Patterns
+
+Import base tools in three ways:
+
+```python
+# Top-level (recommended)
+from laddr import TaskDelegationTool, ParallelDelegationTool, ArtifactStorageTool
+
+# Core module
+from laddr.core import TaskDelegationTool, ParallelDelegationTool, ArtifactStorageTool
+
+# Direct module
+from laddr.core.system_tools import TaskDelegationTool, ParallelDelegationTool, ArtifactStorageTool
+
+```
+
+---
+
+## Common Mistakes
+
+### ❌ Missing Runtime Parameters
+
+```python
+# ❌ Wrong - Missing injected parameters
+@override_system_tool("system_delegate_task")
+async def bad_override(agent_name: str, task: str):
+    # Can't use base tools without dependencies!
+    pass
+
+# ✅ Correct - Include all parameters
+@override_system_tool("system_delegate_task")
+async def good_override(
+    agent_name: str,
+    task: str,
+    _message_bus=None,
+    _artifact_storage=None,
+    _agent=None
+):
+    tool = TaskDelegationTool(_message_bus, _artifact_storage, _agent)
+    return await tool.delegate_task(...)
+
+```
+
+### ❌ Reimplementing Core Logic
+
+```python
+# ❌ Bad - Reimplementing everything
+@override_system_tool("system_delegate_task")
+async def bad_override(...):
+    # 100+ lines of message bus logic
+    # Easy to introduce bugs
+    pass
+
+# ✅ Good - Reuse base tool
+@override_system_tool("system_delegate_task")
+async def good_override(..., _message_bus=None, _artifact_storage=None, _agent=None):
+    tool = TaskDelegationTool(_message_bus, _artifact_storage, _agent)
+    return await tool.delegate_task(...)
+
+```
+
+---
+
+## Next Steps
+
+- [Complete Guide](/guides/system-tools/custom-system-tools) - Full documentation
+- [Migration Guide](/migration/migration-system-tools) - Upgrade existing overrides
+- [Agent Configuration](/guides/agents/agent-config) - Configure agents

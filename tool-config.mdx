@@ -1,0 +1,62 @@
+# page.tsx
+
+## Description
+The `ConfigPage` component serves as a documentation page for tool development within a Python environment. It provides information on the basic structure of tools, key features such as parameters and tracing, supported JSON schema types, example tool patterns, registering tools with agents, and testing tools.
+
+## Usage Examples
+### Basic Tool Structure
+```python
+@tool(
+    name="weather_lookup",
+    description="Fetches current weather for a given city",
+    parameters={
+        "type": "object",
+        "properties": {
+            "city": {"type": "string", "description": "City name"},
+            "units": {"type": "string", "description": "Units (metric/imperial)", "default": "metric"}
+        },
+        "required": ["city"]
+    }
+)
+def weather_lookup(city: str, units: str = "metric") -> Dict:
+    """Tool docstring: fetch current weather."""
+    try:
+        result = get_weather(city, units)
+        return {"status": "success", "data": result}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+```
+
+### The @tool Decorator Syntax
+```python
+@tool(
+    name: str,
+    description: str,
+    parameters: dict,
+    trace: bool = True,
+    trace_mask: list = []
+)
+```
+
+### Key Features Table
+| Parameter   | Type  | Required | Description                            |
+|-------------|-------|----------|----------------------------------------|
+| name        | str   | ✅       | Unique identifier used by agents       |
+| description | str   | ✅       | Summary of tool’s purpose              |
+| parameters  | dict  | ✅       | JSON Schema for tool inputs            |
+| trace       | bool  | ❌       | Enables or disables logging            |
+| trace_mask  | list  | ❌       | Redacts sensitive trace fields         |
+
+## Parameters
+- **name**: Unique identifier used by agents.
+- **description**: Summary of the tool's purpose.
+- **parameters**: JSON Schema describing the accepted parameters.
+- **trace**: Boolean flag to enable or disable logging.
+- **trace_mask**: List of fields to redact in traces.
+
+## Return Values
+The component renders a detailed documentation page with sections covering various aspects of tool development in Python.
+
+## Additional Notes
+- The component includes examples of different tool patterns like API wrappers, data transformers, and file operations.
+- It also provides guidance on registering tools with agents and testing them manually using code snippets.
