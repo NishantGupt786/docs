@@ -3,9 +3,15 @@
   "theme": "almond",
   "name": "Laddr Documentation",
   "colors": {
-    "primary": "#1FB8CD",
-    "light": "#6FE1F0",
-    "dark": "#118FA1"
+    "primary": "#000000",
+    "light": "#EEDC9A",
+    "dark": "#1A1A1A"
+  },
+  "background": {
+    "color": {
+      "light": "#FAFAF8",
+      "dark": "#0E0E0E"
+    }
   },
   "favicon": "/favicon.ico",
   "navigation": {

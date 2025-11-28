@@ -1,0 +1,87 @@
+/* ============================================================
+   Buttons — Unified Premium Styling  
+   Light mode: light-friendly background with yellow text  
+   Dark mode: dark pill with yellow text (your screenshot)
+   ============================================================ */
+
+/* Primary yellow */
+:root {
+    --accent-yellow: #E5D600;
+    --accent-yellow-hover: #F0E84A; /* slightly brighter for hover */
+  }
+  
+  /* ---------------------------- */
+  /* DARK MODE BUTTONS            */
+  /* ---------------------------- */
+  
+  [data-theme="dark"] button,
+  [data-theme="dark"] button.primary,
+  [data-theme="dark"] .btn,
+  [data-theme="dark"] a.button,
+  [data-theme="dark"] .mintlify-button,
+  [data-theme="dark"] .mintlify-action,
+  [data-theme="dark"] .copy-button,
+  [data-theme="dark"] [data-mintlify="button"] {
+    background: #1A1A1A !important;  /* matte dark pill */
+    color: var(--accent-yellow) !important;
+    border: 1px solid #E5D600 !important;
+    border-radius: 12px !important;
+    padding: 8px 16px !important;
+    font-weight: 500 !important;
+    box-shadow: none !important;
+  }
+  
+  /* Hover */
+  [data-theme="dark"] button:hover,
+  [data-theme="dark"] button.primary:hover,
+  [data-theme="dark"] .btn:hover,
+  [data-theme="dark"] a.button:hover,
+  [data-theme="dark"] .mintlify-button:hover,
+  [data-theme="dark"] .mintlify-action:hover,
+  [data-theme="dark"] .copy-button:hover,
+  [data-theme="dark"] [data-mintlify="button"]:hover {
+    background: #242424 !important;
+    color: var(--accent-yellow-hover) !important;
+    border-color: #E5D600 !important;
+    transform: translateY(-1px);
+    transition: all 0.15s ease;
+  }
+  
+  
+  /* ---------------------------- */
+  /* LIGHT MODE BUTTONS           */
+  /* ---------------------------- */
+  
+  [data-theme="light"] button,
+  [data-theme="light"] button.primary,
+  [data-theme="light"] .btn,
+  [data-theme="light"] a.button,
+  [data-theme="light"] .mintlify-button,
+  [data-theme="light"] .mintlify-action,
+  [data-theme="light"] .copy-button,
+  [data-theme="light"] [data-mintlify="button"] {
+    background: #F5F5E6 !important;      /* soft warm off-white (friendly) */
+    color: var(--accent-yellow) !important; /* yellow text */
+    border: 1px solid rgba(229, 214, 0, 0.35) !important;
+    border-radius: 12px !important;
+    padding: 8px 16px !important;
+    font-weight: 500 !important;
+    box-shadow: none !important;
+  }
+  
+  /* Light hover */
+  [data-theme="light"] button:hover,
+  [data-theme="light"] button.primary:hover,
+  [data-theme="light"] .btn:hover,
+  [data-theme="light"] a.button:hover,
+  [data-theme="light"] .mintlify-button:hover,
+  [data-theme="light"] .mintlify-action:hover,
+  [data-theme="light"] .copy-button:hover,
+  [data-theme="light"] [data-mintlify="button"]:hover {
+    background: #ECECD2 !important;       /* slightly stronger warm tint */
+    border-color: rgba(229, 214, 0, 0.5) !important;
+    color: var(--accent-yellow-hover) !important;
+    transform: translateY(-1px);
+    transition: all 0.15s ease;
+  }
+  
